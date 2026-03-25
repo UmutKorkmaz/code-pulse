@@ -1,0 +1,8 @@
+node_modules/
+out/
+.serena/
+*.vsix
+.DS_Store
+.vscode-test/
+coverage/
+*.log

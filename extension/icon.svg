@@ -1,0 +1,30 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="64" cy="64" r="60" fill="url(#gradient1)" stroke="#4A90E2" stroke-width="2"/>
+  
+  <!-- Pulse Wave -->
+  <path d="M20 64 L30 64 L35 50 L40 78 L45 42 L50 86 L55 36 L60 92 L65 28 L70 100 L75 28 L80 92 L85 36 L90 86 L95 42 L98 78 L103 50 L108 64 L128 64" 
+        stroke="#FFFFFF" 
+        stroke-width="3" 
+        fill="none"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        opacity="0.9"/>
+  
+  <!-- Code Brackets -->
+  <text x="28" y="48" font-family="Monaco, monospace" font-size="24" fill="#FFFFFF" opacity="0.7">&lt;</text>
+  <text x="92" y="48" font-family="Monaco, monospace" font-size="24" fill="#FFFFFF" opacity="0.7">/&gt;</text>
+  
+  <!-- Timer Circle -->
+  <circle cx="64" cy="88" r="12" fill="none" stroke="#FFFFFF" stroke-width="2" opacity="0.8"/>
+  <line x1="64" y1="88" x2="64" y2="80" stroke="#FFFFFF" stroke-width="2" opacity="0.8" stroke-linecap="round"/>
+  <line x1="64" y1="88" x2="70" y2="88" stroke="#FFFFFF" stroke-width="2" opacity="0.8" stroke-linecap="round"/>
+  
+  <!-- Gradient Definition -->
+  <defs>
+    <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667EEA;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764BA2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+</svg>

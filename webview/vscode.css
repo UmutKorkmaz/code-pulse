@@ -1,0 +1,256 @@
+/* VSCode theme integration styles */
+
+:root {
+    /* Use VSCode's color tokens */
+    --vscode-font-family: var(--vscode-font-family, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
+    --vscode-font-size: var(--vscode-font-size, 13px);
+    
+    /* Fallbacks for VSCode color variables */
+    --vscode-foreground: var(--vscode-foreground, #cccccc);
+    --vscode-descriptionForeground: var(--vscode-descriptionForeground, #cccccc99);
+    --vscode-editor-background: var(--vscode-editor-background, #1e1e1e);
+    --vscode-sideBar-background: var(--vscode-sideBar-background, #252526);
+    --vscode-panel-border: var(--vscode-panel-border, #2d2d30);
+    --vscode-button-background: var(--vscode-button-background, #0e639c);
+    --vscode-button-hoverBackground: var(--vscode-button-hoverBackground, #1177bb);
+    --vscode-input-background: var(--vscode-input-background, #3c3c3c);
+    --vscode-input-border: var(--vscode-input-border, #3c3c3c);
+    --vscode-focusBorder: var(--vscode-focusBorder, #007fd4);
+    --vscode-textLink-foreground: var(--vscode-textLink-foreground, #3794ff);
+    --vscode-errorForeground: var(--vscode-errorForeground, #f48771);
+    --vscode-notificationsWarningIcon-foreground: var(--vscode-notificationsWarningIcon-foreground, #ffb347);
+    --vscode-notificationsInfoIcon-foreground: var(--vscode-notificationsInfoIcon-foreground, #3794ff);
+}
+
+/* Override default colors to match VSCode theme */
+body {
+    background-color: var(--vscode-editor-background);
+    color: var(--vscode-foreground);
+    font-family: var(--vscode-font-family);
+    font-size: var(--vscode-font-size);
+}
+
+/* Button styles that match VSCode */
+.btn-primary {
+    background-color: var(--vscode-button-background);
+    border-color: var(--vscode-button-background);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--vscode-button-hoverBackground);
+    border-color: var(--vscode-button-hoverBackground);
+}
+
+.btn-primary:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: 2px;
+}
+
+/* Input styles */
+input, select, textarea {
+    background-color: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border);
+    color: var(--vscode-foreground);
+    font-family: var(--vscode-font-family);
+    font-size: var(--vscode-font-size);
+    padding: 4px 8px;
+    border-radius: 2px;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
+    border-color: var(--vscode-focusBorder);
+}
+
+/* Link styles */
+a {
+    color: var(--vscode-textLink-foreground);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Card backgrounds should blend with VSCode */
+.current-session,
+.today-stats,
+.quick-stats,
+.weekly-chart {
+    background-color: var(--vscode-sideBar-background);
+    border-color: var(--vscode-panel-border);
+}
+
+.stat-card {
+    background-color: var(--vscode-editor-background);
+    border-color: var(--vscode-panel-border);
+}
+
+/* Status colors that match VSCode notifications */
+.status-dot.active,
+.success,
+.btn-success {
+    background-color: var(--vscode-notificationsInfoIcon-foreground);
+    border-color: var(--vscode-notificationsInfoIcon-foreground);
+}
+
+.status-dot.idle,
+.warning,
+.btn-warning {
+    background-color: var(--vscode-notificationsWarningIcon-foreground);
+    border-color: var(--vscode-notificationsWarningIcon-foreground);
+}
+
+.status-dot:not(.active):not(.idle),
+.error,
+.btn-error {
+    background-color: var(--vscode-errorForeground);
+    border-color: var(--vscode-errorForeground);
+}
+
+/* Scrollbar styling to match VSCode */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-corner {
+    background-color: var(--vscode-editor-background);
+}
+
+::-webkit-scrollbar-track {
+    background-color: var(--vscode-editor-background);
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--vscode-scrollbarSlider-background, #4e4e4e);
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--vscode-scrollbarSlider-hoverBackground, #5a5a5a);
+}
+
+::-webkit-scrollbar-thumb:active {
+    background-color: var(--vscode-scrollbarSlider-activeBackground, #646464);
+}
+
+/* Selection styling */
+::selection {
+    background-color: var(--vscode-editor-selectionBackground, #264f78);
+}
+
+::-moz-selection {
+    background-color: var(--vscode-editor-selectionBackground, #264f78);
+}
+
+/* Code styling to match VSCode editor */
+code, .code {
+    font-family: var(--vscode-editor-font-family, 'Courier New', monospace);
+    font-size: var(--vscode-editor-font-size, 14px);
+    background-color: var(--vscode-textCodeBlock-background, #2d2d30);
+    padding: 2px 4px;
+    border-radius: 2px;
+    color: var(--vscode-foreground);
+}
+
+/* VSCode-style focus indicators */
+button:focus,
+input:focus,
+select:focus,
+textarea:focus,
+.btn:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .btn, .stat-card, .current-session, .today-stats, .quick-stats, .weekly-chart {
+        border-width: 2px;
+    }
+    
+    .status-dot {
+        border: 2px solid var(--vscode-foreground);
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .status-dot {
+        animation: none;
+    }
+}
+
+/* VSCode panel styling */
+.vscode-panel {
+    border: 1px solid var(--vscode-panel-border);
+    background-color: var(--vscode-sideBar-background);
+}
+
+.vscode-panel-header {
+    background-color: var(--vscode-panelTitle-activeForeground, var(--vscode-sideBar-background));
+    border-bottom: 1px solid var(--vscode-panel-border);
+    padding: 8px 16px;
+    font-weight: 600;
+    color: var(--vscode-panelTitle-activeForeground, var(--vscode-foreground));
+}
+
+/* Activity bar colors */
+.activity-indicator {
+    background-color: var(--vscode-activityBar-background, #2c2c2c);
+    color: var(--vscode-activityBar-foreground, #ffffff);
+}
+
+/* Breadcrumb styling */
+.breadcrumb {
+    color: var(--vscode-breadcrumb-foreground, #cccccc);
+    background-color: var(--vscode-breadcrumb-background, transparent);
+}
+
+.breadcrumb-separator {
+    color: var(--vscode-breadcrumbPicker-foreground, #cccccc);
+}
+
+/* Status bar styling */
+.status-bar {
+    background-color: var(--vscode-statusBar-background, #007acc);
+    color: var(--vscode-statusBar-foreground, #ffffff);
+    border-top: 1px solid var(--vscode-statusBar-border, transparent);
+}
+
+/* Tree view styling */
+.tree-item {
+    color: var(--vscode-tree-tableColumnsBorder, var(--vscode-foreground));
+}
+
+.tree-item:hover {
+    background-color: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+
+.tree-item.selected {
+    background-color: var(--vscode-list-activeSelectionBackground, #094771);
+    color: var(--vscode-list-activeSelectionForeground, #ffffff);
+}
+
+/* Progress bar styling */
+.progress-bar {
+    background-color: var(--vscode-progressBar-background, #0e70c0);
+    height: 2px;
+    transition: width 0.3s ease;
+}
+
+.progress-container {
+    background-color: var(--vscode-panel-border);
+    height: 2px;
+    overflow: hidden;
+    border-radius: 1px;
+}

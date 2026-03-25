@@ -1,0 +1,16 @@
+{
+    "id": "test-session-1",
+    "startTime": "2024-01-15T10:30:00.000Z",
+    "endTime": "2024-01-15T11:45:30.000Z",
+    "duration": 4530000,
+    "project": "CodePulse",
+    "language": "typescript",
+    "file": "/Users/test/Projects/CodePulse/src/extension.ts",
+    "branch": "main",
+    "isActive": false,
+    "heartbeats": 38,
+    "keystrokes": 1250,
+    "linesAdded": 45,
+    "linesRemoved": 12,
+    "productivityScore": 85
+}

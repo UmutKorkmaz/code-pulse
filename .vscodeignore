@@ -1,0 +1,202 @@
+# Build outputs
+out/test/**
+src/**
+**/*.map
+.vscode-test/**
+
+# Development files
+.vscode/
+.git/
+.gitignore
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE files
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+.env.test
+.env.production
+.env.local
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.log/)
+.cache
+.parcel-cache
+
+# next.js build output
+.next
+
+# nuxt.js build output
+.nuxt
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless/
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Test files
+test/
+**/*.test.ts
+**/*.spec.ts
+
+# Documentation generation
+docs/
+
+# Temporary files
+tmp/
+temp/
+
+# Package files
+*.vsix
+*.tgz
+
+# Development configuration
+.prettierrc*
+.eslintrc*
+tsconfig.json
+webpack.config.js
+rollup.config.js
+
+# Git files
+.git/
+.gitattributes
+.gitignore
+.gitmodules
+
+# GitHub files
+.github/
+
+# Editor configuration
+.editorconfig
+
+# Local development database
+*.db
+*.sqlite
+*.sqlite3
+
+# Development scripts
+scripts/dev/
+scripts/test/
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Archive files
+*.zip
+*.tar.gz
+*.rar
+
+# Security files
+.npmrc
+.env.*
+
+# Build scripts and configuration that shouldn't be in the extension package
+webpack/
+build/
+config/
+jest.config.js
+babel.config.js
+
+# Source maps (keep only production ones)
+**/*.js.map
+
+# Development documentation
+DEVELOPMENT.md
+CONTRIBUTING.md
+CHANGELOG.md
+
+# License files (keep main LICENSE in package)
+LICENSES/
+
+# Example and demo files
+examples/
+demo/
+sample/

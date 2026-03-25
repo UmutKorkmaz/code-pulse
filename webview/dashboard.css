@@ -1,0 +1,481 @@
+/* Dashboard specific styles for CodePulse */
+
+/* Import main styles */
+@import './main.css';
+
+/* Dashboard Layout */
+.dashboard-container {
+    min-height: 100vh;
+    background-color: var(--vscode-editor-background);
+    color: var(--vscode-foreground);
+}
+
+.dashboard-header {
+    background-color: var(--vscode-sideBar-background);
+    border-bottom: 1px solid var(--vscode-panel-border);
+    padding: var(--spacing-lg);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.dashboard-title {
+    font-size: 1.8em;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin: 0;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+/* Main Dashboard Content */
+.dashboard-main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: var(--spacing-xl);
+}
+
+body.compact-mode .dashboard-main {
+    padding: var(--spacing-md);
+}
+
+body.compact-mode .dashboard-grid {
+    gap: var(--spacing-md);
+}
+
+body.compact-mode .card {
+    padding: var(--spacing-md);
+}
+
+/* Dashboard Grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+    grid-auto-rows: min-content;
+}
+
+/* Card Styles */
+.card {
+    background: var(--vscode-sideBar-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: var(--radius);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.card-title {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: var(--vscode-foreground);
+    margin: 0 0 var(--spacing-md) 0;
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+/* Current Session Card */
+.current-session-card {
+    grid-column: span 2;
+    text-align: center;
+}
+
+.current-session-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.session-timer {
+    font-size: 3.5em;
+    font-weight: 300;
+    font-family: 'Courier New', monospace;
+    color: var(--primary-color);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.session-info {
+    color: var(--vscode-descriptionForeground);
+    font-size: 1.1em;
+    line-height: 1.6;
+}
+
+.session-info div {
+    margin: var(--spacing-xs) 0;
+}
+
+/* Stats Card */
+.stats-card {
+    grid-column: span 2;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.stat-item {
+    text-align: center;
+    padding: var(--spacing-md);
+    background: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: var(--radius);
+    transition: transform 0.2s ease;
+}
+
+.stat-item:hover {
+    transform: scale(1.05);
+}
+
+.stat-value {
+    font-size: 1.8em;
+    font-weight: 700;
+    color: var(--primary-color);
+    line-height: 1.2;
+    display: block;
+}
+
+.stat-label {
+    font-size: 0.9em;
+    color: var(--vscode-descriptionForeground);
+    margin-top: var(--spacing-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Chart Card */
+.chart-card {
+    grid-column: span 2;
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin-top: var(--spacing-md);
+}
+
+.chart-container canvas {
+    max-height: 100% !important;
+}
+
+/* Breakdown Cards */
+.breakdown-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.breakdown-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    flex: 1;
+}
+
+.breakdown-list {
+    flex: 1;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.breakdown-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) 0;
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.breakdown-item:last-child {
+    border-bottom: none;
+}
+
+.breakdown-name {
+    font-weight: 500;
+    color: var(--vscode-foreground);
+    flex: 1;
+    margin-right: var(--spacing-sm);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.breakdown-time {
+    color: var(--vscode-descriptionForeground);
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+.breakdown-percentage {
+    color: var(--primary-color);
+    font-weight: 600;
+    margin-left: var(--spacing-sm);
+    min-width: 45px;
+    text-align: right;
+}
+
+/* Activity Card */
+.activity-card {
+    grid-column: span 2;
+}
+
+.activity-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.activity-item {
+    display: flex;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: var(--radius);
+    margin-bottom: var(--spacing-sm);
+    background: var(--vscode-editor-background);
+    transition: background-color 0.2s ease;
+}
+
+.activity-item:hover {
+    background: var(--vscode-list-hoverBackground);
+}
+
+.activity-item:last-child {
+    margin-bottom: 0;
+}
+
+.activity-time {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85em;
+    color: var(--vscode-descriptionForeground);
+    min-width: 80px;
+}
+
+.activity-description {
+    flex: 1;
+    color: var(--vscode-foreground);
+}
+
+.activity-meta {
+    font-size: 0.85em;
+    color: var(--vscode-descriptionForeground);
+    margin-top: var(--spacing-xs);
+}
+
+/* Progress bars */
+.progress-bar-container {
+    background: var(--vscode-panel-border);
+    border-radius: 10px;
+    overflow: hidden;
+    height: 8px;
+    margin: var(--spacing-xs) 0;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+    transition: width 0.3s ease;
+    border-radius: 10px;
+}
+
+/* Filter Controls */
+.filter-controls {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background: var(--vscode-sideBar-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: var(--radius);
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.filter-group label {
+    font-size: 0.9em;
+    color: var(--vscode-descriptionForeground);
+    font-weight: 500;
+}
+
+.filter-group select,
+.filter-group input[type="date"] {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: var(--radius);
+    background: var(--vscode-input-background);
+    color: var(--vscode-foreground);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--vscode-descriptionForeground);
+}
+
+.empty-state-icon {
+    font-size: 3em;
+    margin-bottom: var(--spacing-md);
+    opacity: 0.5;
+}
+
+.empty-state-title {
+    font-size: 1.2em;
+    margin-bottom: var(--spacing-sm);
+    color: var(--vscode-foreground);
+}
+
+.empty-state-description {
+    margin-bottom: var(--spacing-md);
+}
+
+/* Tooltip */
+.tooltip {
+    position: absolute;
+    background: var(--vscode-sideBar-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: var(--radius);
+    padding: var(--spacing-sm);
+    font-size: 0.85em;
+    color: var(--vscode-foreground);
+    pointer-events: none;
+    z-index: 1000;
+    box-shadow: var(--shadow);
+    max-width: 200px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .dashboard-main {
+        padding: var(--spacing-md);
+    }
+    
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-md);
+    }
+    
+    .current-session-card,
+    .stats-card,
+    .chart-card,
+    .activity-card {
+        grid-column: span 1;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .dashboard-title {
+        font-size: 1.5em;
+    }
+    
+    .session-timer {
+        font-size: 2.5em;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .filter-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+@media (max-width: 480px) {
+    .dashboard-main {
+        padding: var(--spacing-sm);
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .session-timer {
+        font-size: 2em;
+    }
+    
+    .breakdown-content {
+        gap: var(--spacing-sm);
+    }
+    
+    .chart-container {
+        height: 250px;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .header-actions,
+    .btn {
+        display: none !important;
+    }
+    
+    .card {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+    
+    .dashboard-grid {
+        gap: var(--spacing-md);
+    }
+}
+
+/* Animation for data updates */
+.updating {
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
+}
+
+.updated {
+    animation: highlight 0.5s ease;
+}
+
+@keyframes highlight {
+    0% { background-color: var(--accent-color); opacity: 0.3; }
+    100% { background-color: transparent; opacity: 1; }
+}
+
+/* Focus management for accessibility */
+.card:focus-within {
+    outline: 2px solid var(--vscode-focusBorder);
+    outline-offset: 2px;
+}
+
+/* Loading skeleton */
+.skeleton {
+    background: linear-gradient(90deg, var(--vscode-panel-border) 25%, transparent 50%, var(--vscode-panel-border) 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}

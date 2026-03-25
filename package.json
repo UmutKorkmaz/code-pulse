@@ -1,0 +1,293 @@
+{
+  "name": "codepulse",
+  "displayName": "CodePulse",
+  "description": "Advanced time tracking and productivity analytics for developers. Track coding time, analyze productivity patterns, and gain insights into your development workflow.",
+  "version": "1.0.0",
+  "publisher": "codepulse",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other",
+    "Analytics",
+    "Visualization"
+  ],
+  "keywords": [
+    "time tracking",
+    "productivity",
+    "analytics",
+    "coding time",
+    "developer tools",
+    "metrics",
+    "dashboard",
+    "wakatime alternative"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onFileSystem:file",
+    "onFileSystem:untitled"
+  ],
+  "main": "./out/src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codepulse.showDashboard",
+        "title": "Show Dashboard",
+        "category": "CodePulse"
+      },
+      {
+        "command": "codepulse.toggleTracking",
+        "title": "Toggle Time Tracking",
+        "category": "CodePulse"
+      },
+      {
+        "command": "codepulse.showStats",
+        "title": "Show Today's Stats",
+        "category": "CodePulse"
+      },
+      {
+        "command": "codepulse.exportData",
+        "title": "Export Data",
+        "category": "CodePulse"
+      },
+      {
+        "command": "codepulse.resetData",
+        "title": "Reset All Data",
+        "category": "CodePulse"
+      }
+    ],
+    "configuration": {
+      "title": "CodePulse",
+      "properties": {
+        "codepulse.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable CodePulse time tracking"
+        },
+        "codepulse.heartbeatInterval": {
+          "type": "number",
+          "default": 120,
+          "minimum": 30,
+          "maximum": 600,
+          "description": "Heartbeat interval in seconds (30-600)"
+        },
+        "codepulse.idleThreshold": {
+          "type": "number",
+          "default": 300,
+          "minimum": 60,
+          "maximum": 1800,
+          "description": "Idle threshold in seconds (60-1800)"
+        },
+        "codepulse.trackFileChanges": {
+          "type": "boolean",
+          "default": true,
+          "description": "Track file changes and modifications"
+        },
+        "codepulse.trackProjectSwitching": {
+          "type": "boolean",
+          "default": true,
+          "description": "Track project/folder switching"
+        },
+        "codepulse.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show CodePulse status in status bar"
+        },
+        "codepulse.cloudSync.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable cloud synchronization (optional)"
+        },
+        "codepulse.cloudSync.apiUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Cloud sync API URL"
+        },
+        "codepulse.cloudSync.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Cloud sync API key"
+        },
+        "codepulse.cloudSync.includeFilenames": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include filenames when sending data to cloud sync endpoints"
+        },
+        "codepulse.cloudSync.syncInterval": {
+          "type": "number",
+          "default": 300000,
+          "minimum": 60000,
+          "description": "Cloud sync interval in milliseconds"
+        },
+        "codepulse.cloudSync.retryAttempts": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Number of retry attempts for failed cloud sync requests"
+        },
+        "codepulse.cloudSync.timeout": {
+          "type": "number",
+          "default": 30000,
+          "minimum": 1000,
+          "description": "Cloud sync request timeout in milliseconds"
+        },
+        "codepulse.analytics.enableProductivityScore": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable productivity scoring"
+        },
+        "codepulse.analytics.enableLanguageStats": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable programming language statistics"
+        },
+        "codepulse.analytics.enableProjectStats": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable project breakdown statistics"
+        },
+        "codepulse.analytics.enableActivityTracking": {
+          "type": "boolean",
+          "default": true,
+          "description": "Persist editor activity events for analytics and the dashboard timeline"
+        },
+        "codepulse.localServer.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable local API server for external integrations"
+        },
+        "codepulse.localServer.port": {
+          "type": "number",
+          "default": 8080,
+          "minimum": 3000,
+          "maximum": 65535,
+          "description": "Local API server port"
+        },
+        "codepulse.localServer.allowExternalConnections": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow the local API server to listen on non-loopback interfaces"
+        },
+        "codepulse.privacy.trackFilenames": {
+          "type": "boolean",
+          "default": true,
+          "description": "Store filenames in local session history"
+        },
+        "codepulse.privacy.trackFileContent": {
+          "type": "boolean",
+          "default": false,
+          "description": "Reserved for future content-based analysis. File contents are not stored in the current release."
+        },
+        "codepulse.privacy.anonymizeData": {
+          "type": "boolean",
+          "default": false,
+          "description": "Anonymize project and file identifiers in tracked data"
+        },
+        "codepulse.ui.theme": {
+          "type": "string",
+          "enum": ["auto", "light", "dark"],
+          "default": "auto",
+          "description": "Preferred dashboard theme"
+        },
+        "codepulse.ui.compactMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Reduce dashboard spacing for denser layouts"
+        },
+        "codepulse.ui.showNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show passive CodePulse notifications such as welcome and export messages"
+        },
+        "codepulse.ui.showWelcomeMessage": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the first-run welcome message when the extension activates"
+        }
+      }
+    },
+    "views": {
+      "codepulse": [
+        {
+          "id": "codepulse.stats",
+          "name": "CodePulse Stats",
+          "when": "codepulse.enabled"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codepulse",
+          "title": "CodePulse",
+          "icon": "extension/icon.svg"
+        }
+      ]
+    },
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "codepulse.showDashboard"
+        },
+        {
+          "command": "codepulse.toggleTracking"
+        },
+        {
+          "command": "codepulse.showStats"
+        },
+        {
+          "command": "codepulse.exportData"
+        },
+        {
+          "command": "codepulse.resetData"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src test --ext ts",
+    "lint:fix": "eslint src test --ext ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package",
+    "deploy": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "@types/mocha": "^10.0.1",
+    "@types/uuid": "^9.0.0",
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^5.45.0",
+    "@vscode/test-electron": "^2.2.0",
+    "@vscode/vsce": "^2.15.0",
+    "eslint": "^8.28.0",
+    "mocha": "^10.1.0",
+    "prettier": "^2.8.0",
+    "typescript": "^4.9.4"
+  },
+  "dependencies": {
+    "sqlite3": "^5.1.6",
+    "axios": "^1.6.0",
+    "uuid": "^9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/UmutKorkmaz/code-pulse.git"
+  },
+  "homepage": "https://github.com/UmutKorkmaz/code-pulse#readme",
+  "bugs": {
+    "url": "https://github.com/UmutKorkmaz/code-pulse/issues"
+  },
+  "license": "MIT",
+  "icon": "extension/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  }
+}
