@@ -1,6 +1,6 @@
 {
   "name": "codepulse",
-  "displayName": "CodePulse",
+  "displayName": "Code Pulse",
   "description": "Advanced time tracking and productivity analytics for developers. Track coding time, analyze productivity patterns, and gain insights into your development workflow.",
   "version": "1.0.0",
   "publisher": "codepulse",
@@ -24,6 +24,7 @@
   ],
   "activationEvents": [
     "onStartupFinished",
+    "onView:codepulse.stats",
     "onFileSystem:file",
     "onFileSystem:untitled"
   ],
@@ -33,31 +34,41 @@
       {
         "command": "codepulse.showDashboard",
         "title": "Show Dashboard",
-        "category": "CodePulse"
+        "category": "Code Pulse"
       },
       {
         "command": "codepulse.toggleTracking",
         "title": "Toggle Time Tracking",
-        "category": "CodePulse"
+        "category": "Code Pulse"
       },
       {
         "command": "codepulse.showStats",
         "title": "Show Today's Stats",
-        "category": "CodePulse"
+        "category": "Code Pulse"
       },
       {
         "command": "codepulse.exportData",
         "title": "Export Data",
-        "category": "CodePulse"
+        "category": "Code Pulse"
       },
       {
         "command": "codepulse.resetData",
         "title": "Reset All Data",
-        "category": "CodePulse"
+        "category": "Code Pulse"
+      },
+      {
+        "command": "codepulse.syncNow",
+        "title": "Sync Now",
+        "category": "Code Pulse"
+      },
+      {
+        "command": "codepulse.testSync",
+        "title": "Test Sync Connection",
+        "category": "Code Pulse"
       }
     ],
     "configuration": {
-      "title": "CodePulse",
+      "title": "Code Pulse",
       "properties": {
         "codepulse.enabled": {
           "type": "boolean",
@@ -184,9 +195,105 @@
           "default": false,
           "description": "Anonymize project and file identifiers in tracked data"
         },
+        "codepulse.sync.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable cross-device sync via cloud storage"
+        },
+        "codepulse.sync.provider": {
+          "type": "string",
+          "enum": ["custom", "webdav", "github-gist", "google-drive", "onedrive", "dropbox"],
+          "default": "github-gist",
+          "description": "Cloud storage provider for sync",
+          "enumDescriptions": [
+            "Self-hosted REST endpoint (requires API URL + key)",
+            "WebDAV server (NextCloud, ownCloud, Box, Yandex.Disk)",
+            "GitHub Gist (zero setup — uses built-in VS Code GitHub auth)",
+            "Google Drive (requires OAuth access token)",
+            "OneDrive / Microsoft 365 (requires Graph access token)",
+            "Dropbox (requires personal access token)"
+          ]
+        },
+        "codepulse.sync.intervalMs": {
+          "type": "number",
+          "default": 300000,
+          "minimum": 60000,
+          "description": "Interval between automatic sync pushes in milliseconds (min 60000)"
+        },
+        "codepulse.sync.custom.apiUrl": {
+          "type": "string",
+          "default": "",
+          "description": "[Custom REST] Base URL of your sync API"
+        },
+        "codepulse.sync.custom.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "[Custom REST] Bearer token for authentication"
+        },
+        "codepulse.sync.webdav.url": {
+          "type": "string",
+          "default": "",
+          "description": "[WebDAV] Base URL (e.g., https://cloud.example.com/remote.php/dav/files/USERNAME/)"
+        },
+        "codepulse.sync.webdav.username": {
+          "type": "string",
+          "default": "",
+          "description": "[WebDAV] Username"
+        },
+        "codepulse.sync.webdav.password": {
+          "type": "string",
+          "default": "",
+          "description": "[WebDAV] Password or app-specific token"
+        },
+        "codepulse.sync.webdav.path": {
+          "type": "string",
+          "default": "codepulse-sync.json",
+          "description": "[WebDAV] Filename to store the snapshot"
+        },
+        "codepulse.sync.googleDrive.accessToken": {
+          "type": "string",
+          "default": "",
+          "description": "[Google Drive] OAuth 2.0 access token (generate at https://developers.google.com/oauthplayground)"
+        },
+        "codepulse.sync.googleDrive.fileId": {
+          "type": "string",
+          "default": "",
+          "description": "[Google Drive] Optional — specific file ID to sync with (auto-created on first push)"
+        },
+        "codepulse.sync.oneDrive.accessToken": {
+          "type": "string",
+          "default": "",
+          "description": "[OneDrive] Microsoft Graph access token with Files.ReadWrite scope"
+        },
+        "codepulse.sync.oneDrive.filePath": {
+          "type": "string",
+          "default": "/codepulse-sync.json",
+          "description": "[OneDrive] Path within your drive"
+        },
+        "codepulse.sync.dropbox.accessToken": {
+          "type": "string",
+          "default": "",
+          "description": "[Dropbox] Personal access token (https://www.dropbox.com/developers/apps)"
+        },
+        "codepulse.sync.dropbox.filePath": {
+          "type": "string",
+          "default": "/codepulse-sync.json",
+          "description": "[Dropbox] Path within your Dropbox"
+        },
+        "codepulse.dataRetentionDays": {
+          "type": "number",
+          "default": 90,
+          "minimum": 7,
+          "maximum": 365,
+          "description": "Number of days to retain session and activity data (7-365). Older data is pruned at startup."
+        },
         "codepulse.ui.theme": {
           "type": "string",
-          "enum": ["auto", "light", "dark"],
+          "enum": [
+            "auto",
+            "light",
+            "dark"
+          ],
           "default": "auto",
           "description": "Preferred dashboard theme"
         },
@@ -210,8 +317,9 @@
     "views": {
       "codepulse": [
         {
+          "type": "webview",
           "id": "codepulse.stats",
-          "name": "CodePulse Stats",
+          "name": "Code Pulse Stats",
           "when": "codepulse.enabled"
         }
       ]
@@ -220,11 +328,28 @@
       "activitybar": [
         {
           "id": "codepulse",
-          "title": "CodePulse",
+          "title": "Code Pulse",
           "icon": "extension/icon.svg"
         }
       ]
     },
+    "keybindings": [
+      {
+        "command": "codepulse.toggleTracking",
+        "key": "ctrl+shift+alt+t",
+        "mac": "cmd+shift+alt+t"
+      },
+      {
+        "command": "codepulse.showDashboard",
+        "key": "ctrl+shift+alt+d",
+        "mac": "cmd+shift+alt+d"
+      },
+      {
+        "command": "codepulse.showStats",
+        "key": "ctrl+shift+alt+s",
+        "mac": "cmd+shift+alt+s"
+      }
+    ],
     "menus": {
       "commandPalette": [
         {
@@ -241,6 +366,12 @@
         },
         {
           "command": "codepulse.resetData"
+        },
+        {
+          "command": "codepulse.syncNow"
+        },
+        {
+          "command": "codepulse.testSync"
         }
       ]
     }
@@ -255,13 +386,15 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "node ./out/test/runTest.js",
     "package": "vsce package",
-    "deploy": "vsce publish"
+    "deploy": "vsce publish",
+    "ci": "npm run lint && npx tsc --noEmit && npm run compile",
+    "ci:docker": "./scripts/ci-local.sh"
   },
   "devDependencies": {
-    "@types/vscode": "^1.74.0",
-    "@types/node": "16.x",
     "@types/mocha": "^10.0.1",
+    "@types/node": "16.x",
     "@types/uuid": "^9.0.0",
+    "@types/vscode": "^1.74.0",
     "@typescript-eslint/eslint-plugin": "^5.45.0",
     "@typescript-eslint/parser": "^5.45.0",
     "@vscode/test-electron": "^2.2.0",
@@ -272,8 +405,9 @@
     "typescript": "^4.9.4"
   },
   "dependencies": {
-    "sqlite3": "^5.1.6",
     "axios": "^1.6.0",
+    "chart.js": "^4.5.1",
+    "sqlite3": "^5.1.6",
     "uuid": "^9.0.0"
   },
   "repository": {

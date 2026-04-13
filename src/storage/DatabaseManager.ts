@@ -40,7 +40,7 @@ export class DatabaseManager {
         await fs.promises.mkdir(path.dirname(this.dbPath), { recursive: true });
 
         return new Promise((resolve, reject) => {
-            this.db = new sqlite3.Database(this.dbPath, async (err) => {
+            this.db = new sqlite3.Database(this.dbPath, async err => {
                 if (err) {
                     reject(new Error(`Failed to open database: ${err.message}`));
                     return;
@@ -65,7 +65,7 @@ export class DatabaseManager {
                 return;
             }
 
-            this.db.close((err) => {
+            this.db.close(err => {
                 if (err) {
                     reject(new Error(`Failed to close database: ${err.message}`));
                 } else {
@@ -150,7 +150,7 @@ export class DatabaseManager {
             [startDate.toISOString(), endDate.toISOString()]
         );
 
-        return rows.map((row) => this.mapRowToSession(row));
+        return rows.map(row => this.mapRowToSession(row));
     }
 
     public async getSessionsByDate(date: string): Promise<DatabaseSession[]> {
@@ -187,7 +187,7 @@ export class DatabaseManager {
             [startDate.toISOString(), endDate.toISOString()]
         );
 
-        return rows.map((row) => this.mapRowToActivity(row));
+        return rows.map(row => this.mapRowToActivity(row));
     }
 
     public async saveSessionSegment(segment: SessionSegment): Promise<number> {
@@ -251,7 +251,7 @@ export class DatabaseManager {
         );
 
         const result: { [project: string]: number } = {};
-        rows.forEach((row) => {
+        rows.forEach(row => {
             result[row.project] = row.total_duration;
         });
         return result;
@@ -270,7 +270,7 @@ export class DatabaseManager {
         );
 
         const result: { [language: string]: number } = {};
-        rows.forEach((row) => {
+        rows.forEach(row => {
             result[row.language] = row.total_duration;
         });
         return result;
@@ -290,7 +290,7 @@ export class DatabaseManager {
         );
 
         const result: { [file: string]: number } = {};
-        rows.forEach((row) => {
+        rows.forEach(row => {
             result[row.file] = row.total_duration;
         });
         return result;
@@ -346,8 +346,94 @@ export class DatabaseManager {
             activities,
             segments,
             dailyRollups,
-            version: '1.1.0'
+            version: '1.0.0'
         };
+    }
+
+    /**
+     * Merge a snapshot from another device into this database.
+     * Uses INSERT OR IGNORE on session ID to skip records we already have.
+     * Returns the number of new records inserted.
+     */
+    public async mergeSnapshot(snapshot: {
+        sessions: unknown[];
+        activities?: unknown[];
+        segments?: unknown[];
+        dailyRollups?: unknown[];
+    }): Promise<number> {
+        let inserted = 0;
+
+        for (const raw of snapshot.sessions || []) {
+            const s = raw as DatabaseSession;
+            const res = await this.run(
+                `INSERT OR IGNORE INTO sessions (
+                    id, start_time, end_time, duration, idle_duration, project, language, file, branch,
+                    is_active, heartbeats, keystrokes, lines_added, lines_removed, productivity_score
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    s.id,
+                    new Date(s.startTime).toISOString(),
+                    s.endTime ? new Date(s.endTime).toISOString() : null,
+                    s.duration || 0,
+                    s.idleDuration || 0,
+                    s.project,
+                    s.language,
+                    s.file,
+                    s.branch || null,
+                    s.isActive ? 1 : 0,
+                    s.heartbeats || 0,
+                    s.keystrokes || 0,
+                    s.linesAdded || 0,
+                    s.linesRemoved || 0,
+                    s.productivityScore ?? null
+                ]
+            );
+            inserted += res.changes;
+        }
+
+        for (const raw of snapshot.dailyRollups || []) {
+            const r = raw as DailyRollup;
+            await this.run(
+                `INSERT INTO daily_rollups (date, total_time, idle_time, session_count, keystrokes, lines_added, lines_removed, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                 ON CONFLICT(date) DO UPDATE SET
+                    total_time = MAX(total_time, excluded.total_time),
+                    idle_time = MAX(idle_time, excluded.idle_time),
+                    session_count = MAX(session_count, excluded.session_count),
+                    keystrokes = MAX(keystrokes, excluded.keystrokes),
+                    lines_added = MAX(lines_added, excluded.lines_added),
+                    lines_removed = MAX(lines_removed, excluded.lines_removed),
+                    updated_at = CURRENT_TIMESTAMP`,
+                [
+                    r.date,
+                    r.totalTime || 0,
+                    r.idleTime || 0,
+                    r.sessionCount || 0,
+                    r.keystrokes || 0,
+                    r.linesAdded || 0,
+                    r.linesRemoved || 0
+                ]
+            );
+        }
+
+        return inserted;
+    }
+
+    public async pruneOldData(retentionDays: number): Promise<number> {
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+        const cutoffISO = cutoffDate.toISOString();
+
+        const segmentResult = await this.run('DELETE FROM session_segments WHERE start_time < ?', [cutoffISO]);
+        const activityResult = await this.run('DELETE FROM activities WHERE timestamp < ?', [cutoffISO]);
+        const sessionResult = await this.run('DELETE FROM sessions WHERE start_time < ? AND is_active = 0', [
+            cutoffISO
+        ]);
+        const rollupResult = await this.run('DELETE FROM daily_rollups WHERE date < ?', [
+            cutoffDate.toISOString().split('T')[0]
+        ]);
+
+        return segmentResult.changes + activityResult.changes + sessionResult.changes + rollupResult.changes;
     }
 
     public async resetAllData(): Promise<void> {
@@ -374,9 +460,9 @@ export class DatabaseManager {
             `
         );
 
-        let currentVersion = Number((await this.get<{ value: string }>(
-            `SELECT value FROM meta WHERE key = 'schema_version'`
-        ))?.value || '0');
+        let currentVersion = Number(
+            (await this.get<{ value: string }>(`SELECT value FROM meta WHERE key = 'schema_version'`))?.value || '0'
+        );
 
         if (currentVersion < 1) {
             await this.migrateToV1();
@@ -503,7 +589,7 @@ export class DatabaseManager {
 
     private async addColumnIfMissing(tableName: string, columnName: string, columnSql: string): Promise<void> {
         const columns = await this.all<{ name: string }>(`PRAGMA table_info(${tableName})`);
-        if (!columns.some((column) => column.name === columnName)) {
+        if (!columns.some(column => column.name === columnName)) {
             await this.run(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnSql}`);
         }
     }
@@ -521,22 +607,22 @@ export class DatabaseManager {
 
     private async getAllSessions(): Promise<DatabaseSession[]> {
         const rows = await this.all<any>('SELECT * FROM sessions ORDER BY start_time ASC');
-        return rows.map((row) => this.mapRowToSession(row));
+        return rows.map(row => this.mapRowToSession(row));
     }
 
     private async getAllActivities(): Promise<ActivityEvent[]> {
         const rows = await this.all<any>('SELECT * FROM activities ORDER BY timestamp ASC');
-        return rows.map((row) => this.mapRowToActivity(row));
+        return rows.map(row => this.mapRowToActivity(row));
     }
 
     private async getAllSegments(): Promise<SessionSegment[]> {
         const rows = await this.all<any>('SELECT * FROM session_segments ORDER BY start_time ASC');
-        return rows.map((row) => this.mapRowToSegment(row));
+        return rows.map(row => this.mapRowToSegment(row));
     }
 
     private async getAllDailyRollups(): Promise<DailyRollup[]> {
         const rows = await this.all<any>('SELECT * FROM daily_rollups ORDER BY date ASC');
-        return rows.map((row) => ({
+        return rows.map(row => ({
             date: row.date,
             totalTime: row.total_time,
             idleTime: row.idle_time,
@@ -603,7 +689,7 @@ export class DatabaseManager {
         }
 
         return new Promise((resolve, reject) => {
-            this.db!.run(sql, params, function(this: sqlite3.RunResult, err: Error | null) {
+            this.db!.run(sql, params, function (this: sqlite3.RunResult, err: Error | null) {
                 if (err) {
                     reject(new Error(err.message));
                 } else {

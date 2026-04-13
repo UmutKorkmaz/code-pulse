@@ -174,7 +174,7 @@ export class LanguageDetector {
 
     private detectLanguageByFileName(fileName: string): string | null {
         const baseName = path.basename(fileName).toLowerCase();
-        
+
         // Special file name patterns
         const fileNamePatterns: { [key: string]: string } = {
             'dockerfile': 'dockerfile',

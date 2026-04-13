@@ -4,7 +4,7 @@ import { Logger } from '../utils/Logger';
 export class HeartbeatManager {
     private heartbeatTimer: NodeJS.Timeout | null = null;
     private intervalMs: number;
-    private isRunning: boolean = false;
+    private isRunning = false;
     private heartbeatCallback: (() => Promise<void>) | null = null;
 
     constructor(
@@ -22,12 +22,12 @@ export class HeartbeatManager {
 
         this.heartbeatCallback = callback;
         this.isRunning = true;
-        
+
         this.logger.info(`Starting heartbeat manager with interval: ${this.intervalMs}ms`);
-        
+
         // Send initial heartbeat
         this.sendHeartbeat();
-        
+
         // Start periodic heartbeats
         this.heartbeatTimer = setInterval(() => {
             this.sendHeartbeat();
@@ -40,23 +40,23 @@ export class HeartbeatManager {
         }
 
         this.logger.info('Stopping heartbeat manager');
-        
+
         if (this.heartbeatTimer) {
             clearInterval(this.heartbeatTimer);
             this.heartbeatTimer = null;
         }
-        
+
         this.isRunning = false;
         this.heartbeatCallback = null;
     }
 
     public updateConfiguration(): void {
         const newIntervalMs = this.configManager.get('heartbeatInterval', 120) * 1000;
-        
+
         if (newIntervalMs !== this.intervalMs) {
             this.logger.info(`Updating heartbeat interval from ${this.intervalMs}ms to ${newIntervalMs}ms`);
             this.intervalMs = newIntervalMs;
-            
+
             // Restart with new interval if currently running
             if (this.isRunning && this.heartbeatCallback) {
                 const callback = this.heartbeatCallback;

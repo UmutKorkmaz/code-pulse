@@ -1,5 +1,4 @@
 import * as http from 'http';
-import * as url from 'url';
 import { TimeTracker } from '../tracker/TimeTracker';
 import { DatabaseManager } from '../storage/DatabaseManager';
 import { ConfigManager } from '../utils/ConfigManager';
@@ -23,7 +22,7 @@ export interface ApiStats {
 export class ApiServer {
     private server: http.Server | null = null;
     private port: number;
-    private isRunning: boolean = false;
+    private isRunning = false;
     private allowExternalConnections: boolean;
     private stats: ApiStats;
     private requestTimes: number[] = [];
@@ -35,7 +34,7 @@ export class ApiServer {
     ) {
         this.port = this.configManager.get('localServer.port', 8080);
         this.allowExternalConnections = this.configManager.get('localServer.allowExternalConnections', false);
-        
+
         this.stats = {
             requestsTotal: 0,
             requestsByEndpoint: {},
@@ -58,11 +57,11 @@ export class ApiServer {
                 });
 
                 const host = this.allowExternalConnections ? '0.0.0.0' : '127.0.0.1';
-                
+
                 this.server.listen(this.port, host, () => {
                     this.isRunning = true;
                     this.stats.startTime = new Date();
-                    console.log(`CodePulse API server started on ${host}:${this.port}`);
+                    // Server started successfully
                     resolve();
                 });
 
@@ -75,7 +74,6 @@ export class ApiServer {
                         reject(new Error(`Failed to start server: ${error.message}`));
                     }
                 });
-
             } catch (error) {
                 reject(error);
             }
@@ -87,11 +85,11 @@ export class ApiServer {
             return;
         }
 
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
             this.server!.close(() => {
                 this.isRunning = false;
                 this.server = null;
-                console.log('CodePulse API server stopped');
+                // Server stopped
                 resolve();
             });
         });
@@ -123,13 +121,15 @@ export class ApiServer {
             // Restart server with new configuration
             this.port = newPort;
             this.allowExternalConnections = newAllowExternal;
-            this.stop().then(() => this.start()).catch(console.error);
+            this.stop()
+                .then(() => this.start())
+                .catch(console.error);
         }
     }
 
     private async handleRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
         const startTime = Date.now();
-        
+
         try {
             // Enable CORS
             res.setHeader('Access-Control-Allow-Origin', this.allowExternalConnections ? '*' : 'http://localhost');
@@ -144,24 +144,27 @@ export class ApiServer {
                 return;
             }
 
-            const urlParts = url.parse(req.url || '', true);
-            const pathname = urlParts.pathname || '';
-            const query = urlParts.query;
-            
+            const parsedUrl = new URL(req.url || '', `http://localhost:${this.port}`);
+            const pathname = parsedUrl.pathname || '';
+            const query: Record<string, string> = {};
+            parsedUrl.searchParams.forEach((value, key) => {
+                query[key] = value;
+            });
+
             // Update stats
             this.stats.requestsTotal++;
             this.stats.requestsByEndpoint[pathname] = (this.stats.requestsByEndpoint[pathname] || 0) + 1;
-            this.stats.requestsByMethod[req.method || 'UNKNOWN'] = (this.stats.requestsByMethod[req.method || 'UNKNOWN'] || 0) + 1;
+            this.stats.requestsByMethod[req.method || 'UNKNOWN'] =
+                (this.stats.requestsByMethod[req.method || 'UNKNOWN'] || 0) + 1;
 
             // Route the request
             const response = await this.routeRequest(req.method || 'GET', pathname, query, req);
-            
+
             res.writeHead(200);
             res.end(JSON.stringify(response));
-
         } catch (error) {
             console.error('API request error:', error);
-            
+
             const errorResponse: ApiResponse = {
                 success: false,
                 error: error instanceof Error ? error.message : 'Internal server error',
@@ -175,20 +178,23 @@ export class ApiServer {
         // Update response time stats
         const responseTime = Date.now() - startTime;
         this.requestTimes.push(responseTime);
-        
+
         // Keep only last 1000 response times for average calculation
         if (this.requestTimes.length > 1000) {
             this.requestTimes.shift();
         }
-        
+
         this.stats.averageResponseTime = this.requestTimes.reduce((a, b) => a + b, 0) / this.requestTimes.length;
     }
 
-    private async routeRequest(method: string, pathname: string, query: any, req: http.IncomingMessage): Promise<ApiResponse> {
+    private async routeRequest(
+        method: string,
+        pathname: string,
+        query: any,
+        req: http.IncomingMessage
+    ): Promise<ApiResponse> {
         const timestamp = new Date().toISOString();
-        const normalizedPath = pathname === '/v1'
-            ? '/'
-            : (pathname.startsWith('/v1/') ? pathname.slice(3) : pathname);
+        const normalizedPath = pathname === '/v1' ? '/' : pathname.startsWith('/v1/') ? pathname.slice(3) : pathname;
 
         switch (normalizedPath) {
             case '/':
@@ -269,7 +275,7 @@ export class ApiServer {
 
     private async handleCurrentSessionRequest(timestamp: string): Promise<ApiResponse> {
         const currentSession = this.timeTracker.getCurrentSession();
-        
+
         return {
             success: true,
             data: currentSession || null,
@@ -279,7 +285,7 @@ export class ApiServer {
 
     private async handleTodayStatsRequest(timestamp: string): Promise<ApiResponse> {
         const todayStats = await this.timeTracker.getTodaysStats();
-        
+
         return {
             success: true,
             data: todayStats,
@@ -289,7 +295,7 @@ export class ApiServer {
 
     private async handleWeekStatsRequest(timestamp: string): Promise<ApiResponse> {
         const weekStats = await this.timeTracker.getWeeklyStats();
-        
+
         return {
             success: true,
             data: weekStats,
@@ -304,7 +310,7 @@ export class ApiServer {
         startDate.setDate(endDate.getDate() - days);
 
         const projectStats = await this.databaseManager.getTotalTimeByProject(startDate, endDate);
-        
+
         return {
             success: true,
             data: projectStats,
@@ -319,7 +325,7 @@ export class ApiServer {
         startDate.setDate(endDate.getDate() - days);
 
         const languageStats = await this.databaseManager.getTotalTimeByLanguage(startDate, endDate);
-        
+
         return {
             success: true,
             data: languageStats,
@@ -327,14 +333,19 @@ export class ApiServer {
         };
     }
 
-    private async handleSessionsRequest(method: string, query: any, req: http.IncomingMessage, timestamp: string): Promise<ApiResponse> {
+    private async handleSessionsRequest(
+        method: string,
+        query: any,
+        req: http.IncomingMessage,
+        timestamp: string
+    ): Promise<ApiResponse> {
         if (method === 'GET') {
             const startDate = query.start ? new Date(query.start) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
             const endDate = query.end ? new Date(query.end) : new Date();
             const limit = parseInt(query.limit) || 100;
 
             let sessions = await this.databaseManager.getSessionsByDateRange(startDate, endDate);
-            
+
             // Apply limit
             if (sessions.length > limit) {
                 sessions = sessions.slice(-limit);
@@ -381,13 +392,13 @@ export class ApiServer {
 
     private async handleExportRequest(query: any, timestamp: string): Promise<ApiResponse> {
         const format = query.format || 'json';
-        
+
         if (format !== 'json') {
             throw new Error('Only JSON format is currently supported');
         }
 
         const exportData = await this.databaseManager.exportAllData();
-        
+
         return {
             success: true,
             data: exportData,
@@ -397,7 +408,7 @@ export class ApiServer {
 
     private async handleHealthRequest(timestamp: string): Promise<ApiResponse> {
         const currentSession = this.timeTracker.getCurrentSession();
-        
+
         return {
             success: true,
             data: {
@@ -417,25 +428,5 @@ export class ApiServer {
             data: this.getStats(),
             timestamp
         };
-    }
-
-    private async parseRequestBody(req: http.IncomingMessage): Promise<any> {
-        return new Promise((resolve, reject) => {
-            let body = '';
-            
-            req.on('data', chunk => {
-                body += chunk.toString();
-            });
-            
-            req.on('end', () => {
-                try {
-                    resolve(body ? JSON.parse(body) : {});
-                } catch (error) {
-                    reject(new Error('Invalid JSON in request body'));
-                }
-            });
-            
-            req.on('error', reject);
-        });
     }
 }

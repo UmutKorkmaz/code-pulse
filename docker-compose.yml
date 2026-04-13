@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  # Full CI pipeline: lint + typecheck + build
+  ci:
+    build:
+      context: .
+      target: ci
+    volumes:
+      - .:/app:ro
+      - node_modules:/app/node_modules
+
+  # Individual stages for faster iteration
+  lint:
+    build:
+      context: .
+      target: lint
+
+  typecheck:
+    build:
+      context: .
+      target: typecheck
+
+  build:
+    build:
+      context: .
+      target: build
+
+  test:
+    build:
+      context: .
+      target: test
+
+volumes:
+  node_modules:

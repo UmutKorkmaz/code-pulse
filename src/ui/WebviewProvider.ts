@@ -7,6 +7,7 @@ import { DatabaseManager } from '../storage/DatabaseManager';
 export class WebviewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'codepulse.stats';
     private _view?: vscode.WebviewView;
+    private _dashboardPanels: Set<vscode.WebviewPanel> = new Set();
 
     constructor(
         private context: vscode.ExtensionContext,
@@ -18,7 +19,7 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
         context: vscode.WebviewViewResolveContext,
-        _token: vscode.CancellationToken,
+        _token: vscode.CancellationToken
     ) {
         this._view = webviewView;
 
@@ -56,7 +57,7 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         // Create or show the full dashboard in a new webview panel
         const panel = vscode.window.createWebviewPanel(
             'codepulse.dashboard',
-            'CodePulse Dashboard',
+            'Code Pulse Dashboard',
             vscode.ViewColumn.One,
             {
                 enableScripts: true,
@@ -69,6 +70,16 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         );
 
         panel.webview.html = this._getFullDashboardHtml(panel.webview);
+
+        // Track this panel so we can broadcast updates to it
+        this._dashboardPanels.add(panel);
+        panel.onDidDispose(
+            () => {
+                this._dashboardPanels.delete(panel);
+            },
+            undefined,
+            this.context.subscriptions
+        );
 
         // Handle messages from the dashboard
         panel.webview.onDidReceiveMessage(
@@ -85,6 +96,12 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
 
     public async refresh(): Promise<void> {
         await this.refreshData();
+        await this.broadcastToDashboards();
+    }
+
+    private async broadcastToDashboards(): Promise<void> {
+        const panels = Array.from(this._dashboardPanels);
+        await Promise.all(panels.map(p => this.loadFullDashboardData(p.webview)));
     }
 
     private async handleWebviewMessage(message: any, webview?: vscode.Webview) {
@@ -92,7 +109,7 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
             case 'getData':
                 await this.refreshData();
                 break;
-            
+
             case 'getFullData':
                 if (webview) {
                     await this.loadFullDashboardData(webview);
@@ -102,19 +119,21 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
             case 'showDashboard':
                 await this.showDashboard();
                 break;
-                
+
             case 'toggleTracking':
-                this.timeTracker.toggleTracking();
+                await this.timeTracker.toggleTracking();
+                // Broadcast to sidebar + all open dashboard panels
+                await this.refresh();
                 break;
-                
+
             case 'showTodayStats':
                 await this.timeTracker.showTodaysStats();
                 break;
-                
+
             case 'exportData':
                 await this.timeTracker.exportData();
                 break;
-                
+
             case 'refreshData':
                 await this.refreshData();
                 break;
@@ -130,6 +149,28 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
             case 'getLanguageStats':
                 await this.getLanguageStats(webview);
                 break;
+
+            case 'getAllSessions':
+                await this.getAllSessions(message.days ?? 0, webview);
+                break;
+        }
+    }
+
+    private async getAllSessions(days: number, webview?: vscode.Webview) {
+        try {
+            const endDate = new Date();
+            const startDate = new Date();
+            if (days > 0) {
+                startDate.setDate(endDate.getDate() - days);
+            } else {
+                startDate.setFullYear(2000); // "all time"
+            }
+
+            const sessions = await this.databaseManager.getSessionsByDateRange(startDate, endDate);
+            const target = webview ?? this._view?.webview;
+            target?.postMessage({ command: 'updateAllSessions', data: { sessions, days } });
+        } catch (error) {
+            console.error('Failed to get all sessions:', error);
         }
     }
 
@@ -143,7 +184,7 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
             const todayStats = await this.timeTracker.getTodaysStats();
             const weeklyStats = await this.timeTracker.getWeeklyStats();
             const settings = this.getWebviewSettings();
-            
+
             this._view.webview.postMessage({
                 command: 'updateData',
                 data: {
@@ -155,7 +196,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
                     settings
                 }
             });
-
         } catch (error) {
             console.error('Failed to refresh webview data:', error);
         }
@@ -166,12 +206,12 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
             const currentSession = this.timeTracker.getCurrentSession();
             const todayStats = await this.timeTracker.getTodaysStats();
             const weeklyStats = await this.timeTracker.getWeeklyStats();
-            
+
             // Get additional analytics data
             const endDate = new Date();
             const startDate = new Date();
             startDate.setDate(endDate.getDate() - 30); // Last 30 days
-            
+
             const sessions = await this.databaseManager.getSessionsByDateRange(startDate, endDate);
             const activities = await this.databaseManager.getActivitiesByDateRange(startDate, endDate);
             const projectStats = this.configManager.get('analytics.enableProjectStats', true)
@@ -197,7 +237,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
                     settings
                 }
             });
-
         } catch (error) {
             console.error('Failed to load full dashboard data:', error);
         }
@@ -207,7 +246,7 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         try {
             const start = new Date(startDate);
             const end = new Date(endDate);
-            
+
             const sessions = await this.databaseManager.getSessionsByDateRange(start, end);
             const activities = await this.databaseManager.getActivitiesByDateRange(start, end);
             const projectStats = this.configManager.get('analytics.enableProjectStats', true)
@@ -216,7 +255,7 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
             const languageStats = this.configManager.get('analytics.enableLanguageStats', true)
                 ? await this.databaseManager.getTotalTimeByLanguage(start, end)
                 : {};
-            
+
             const targetWebview = webview ?? this._view?.webview;
             if (targetWebview) {
                 targetWebview.postMessage({
@@ -230,7 +269,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
                     }
                 });
             }
-
         } catch (error) {
             console.error('Failed to get date range data:', error);
         }
@@ -247,9 +285,9 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
             const endDate = new Date();
             const startDate = new Date();
             startDate.setDate(endDate.getDate() - 30);
-            
+
             const projectStats = await this.databaseManager.getTotalTimeByProject(startDate, endDate);
-            
+
             const targetWebview = webview ?? this._view?.webview;
             if (targetWebview) {
                 targetWebview.postMessage({
@@ -257,7 +295,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
                     data: projectStats
                 });
             }
-
         } catch (error) {
             console.error('Failed to get project stats:', error);
         }
@@ -274,9 +311,9 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
             const endDate = new Date();
             const startDate = new Date();
             startDate.setDate(endDate.getDate() - 30);
-            
+
             const languageStats = await this.databaseManager.getTotalTimeByLanguage(startDate, endDate);
-            
+
             const targetWebview = webview ?? this._view?.webview;
             if (targetWebview) {
                 targetWebview.postMessage({
@@ -284,7 +321,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
                     data: languageStats
                 });
             }
-
         } catch (error) {
             console.error('Failed to get language stats:', error);
         }
@@ -312,10 +348,14 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     }
 
     private _getHtmlForWebview(webview: vscode.Webview): string {
-        const styleVscode = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'webview', 'vscode.css'));
+        const styleVscode = webview.asWebviewUri(
+            vscode.Uri.joinPath(this.context.extensionUri, 'webview', 'vscode.css')
+        );
         const styleMain = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'webview', 'main.css'));
         const scriptMain = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'webview', 'main.js'));
-        const scriptChart = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'webview', 'chart.min.js'));
+        const scriptChart = webview.asWebviewUri(
+            vscode.Uri.joinPath(this.context.extensionUri, 'webview', 'chart.min.js')
+        );
 
         return `<!DOCTYPE html>
         <html lang="en">
@@ -324,46 +364,36 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <link href="${styleVscode}" rel="stylesheet">
             <link href="${styleMain}" rel="stylesheet">
-            <title>CodePulse Stats</title>
+            <title>Code Pulse</title>
         </head>
         <body ${this.getBodyAttributes()}>
             <div class="container">
-                <div class="header">
-                    <h2 class="title">CodePulse</h2>
+                <div class="current-session" id="currentSession">
                     <div class="status-indicator" id="statusIndicator">
                         <span class="status-dot"></span>
-                        <span class="status-text">Loading...</span>
+                        <span class="status-text">Loading…</span>
                     </div>
-                </div>
-
-                <div class="current-session" id="currentSession">
                     <div class="session-info">
                         <div class="session-time" id="sessionTime">--:--:--</div>
                         <div class="session-details" id="sessionDetails">No active session</div>
                     </div>
                 </div>
 
+                <div class="actions">
+                    <button class="btn btn-primary" id="toggleTrackingBtn">Start Tracking</button>
+                    <button class="btn" id="dashboardBtn">Dashboard</button>
+                </div>
+
                 <div class="today-stats" id="todayStats">
                     <h3>Today</h3>
                     <div class="stat-item">
-                        <span class="stat-label">Total Time:</span>
+                        <span class="stat-label">Total Time</span>
                         <span class="stat-value" id="todayTotalTime">0h 0m</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">Productivity:</span>
+                        <span class="stat-label">Productivity</span>
                         <span class="stat-value" id="todayProductivity">0%</span>
                     </div>
-                </div>
-
-                <div class="weekly-chart" id="weeklyChart">
-                    <h3>This Week</h3>
-                    <canvas id="weeklyCanvas" width="300" height="150"></canvas>
-                </div>
-
-                <div class="actions">
-                    <button class="btn btn-primary" id="toggleTrackingBtn">Start Tracking</button>
-                    <button class="btn btn-secondary" id="dashboardBtn">Dashboard</button>
-                    <button class="btn btn-secondary" id="refreshBtn">Refresh</button>
                 </div>
 
                 <div class="quick-stats" id="quickStats">
@@ -386,6 +416,11 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
                         </div>
                     </div>
                 </div>
+
+                <div class="weekly-chart" id="weeklyChart">
+                    <h3>This Week</h3>
+                    <canvas id="weeklyCanvas" width="300" height="140"></canvas>
+                </div>
             </div>
 
             <script src="${scriptChart}"></script>
@@ -395,10 +430,18 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     }
 
     private _getFullDashboardHtml(webview: vscode.Webview): string {
-        const styleVscode = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'webview', 'vscode.css'));
-        const styleDashboard = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'webview', 'dashboard.css'));
-        const scriptDashboard = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'webview', 'dashboard.js'));
-        const scriptChart = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'webview', 'chart.min.js'));
+        const styleVscode = webview.asWebviewUri(
+            vscode.Uri.joinPath(this.context.extensionUri, 'webview', 'vscode.css')
+        );
+        const styleDashboard = webview.asWebviewUri(
+            vscode.Uri.joinPath(this.context.extensionUri, 'webview', 'dashboard.css')
+        );
+        const scriptDashboard = webview.asWebviewUri(
+            vscode.Uri.joinPath(this.context.extensionUri, 'webview', 'dashboard.js')
+        );
+        const scriptChart = webview.asWebviewUri(
+            vscode.Uri.joinPath(this.context.extensionUri, 'webview', 'chart.min.js')
+        );
 
         return `<!DOCTYPE html>
         <html lang="en">
@@ -407,13 +450,13 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <link href="${styleVscode}" rel="stylesheet">
             <link href="${styleDashboard}" rel="stylesheet">
-            <title>CodePulse Dashboard</title>
+            <title>Code Pulse Dashboard</title>
         </head>
         <body ${this.getBodyAttributes()}>
             <div class="dashboard-container">
                 <header class="dashboard-header">
                     <div class="header-content">
-                        <h1 class="dashboard-title">CodePulse Dashboard</h1>
+                        <h1 class="dashboard-title">Code Pulse Dashboard</h1>
                         <div class="header-actions">
                             <div class="status-indicator" id="statusIndicator">
                                 <span class="status-dot"></span>
@@ -485,6 +528,54 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
                                     <canvas id="languageChart" width="300" height="300"></canvas>
                                 </div>
                                 <div class="breakdown-list" id="languageList"></div>
+                            </div>
+                        </div>
+
+                        <!-- Sessions Table Card -->
+                        <div class="card sessions-card">
+                            <div class="sessions-header">
+                                <h2 class="card-title">All Sessions</h2>
+                                <span class="sessions-count" id="sessionsCount">—</span>
+                            </div>
+                            <div class="sessions-filters">
+                                <input type="search" id="sessionSearch" class="filter-input" placeholder="Search file, branch…" />
+                                <select id="sessionProjectFilter" class="filter-input">
+                                    <option value="">All projects</option>
+                                </select>
+                                <select id="sessionLanguageFilter" class="filter-input">
+                                    <option value="">All languages</option>
+                                </select>
+                                <select id="sessionDateRange" class="filter-input">
+                                    <option value="7">Last 7 days</option>
+                                    <option value="30" selected>Last 30 days</option>
+                                    <option value="90">Last 90 days</option>
+                                    <option value="365">Last year</option>
+                                    <option value="0">All time</option>
+                                </select>
+                                <button class="btn btn-secondary" id="sessionClearBtn" type="button">Clear</button>
+                            </div>
+                            <div class="sessions-table-wrapper">
+                                <table class="sessions-table" id="sessionsTable">
+                                    <thead>
+                                        <tr>
+                                            <th data-sort="startTime" class="sortable">Date <span class="sort-arrow"></span></th>
+                                            <th data-sort="project" class="sortable">Project <span class="sort-arrow"></span></th>
+                                            <th data-sort="language" class="sortable">Lang <span class="sort-arrow"></span></th>
+                                            <th data-sort="file">File</th>
+                                            <th data-sort="branch">Branch</th>
+                                            <th data-sort="duration" class="sortable num">Time <span class="sort-arrow"></span></th>
+                                            <th data-sort="productivityScore" class="sortable num">Score <span class="sort-arrow"></span></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sessionsTableBody">
+                                        <tr><td colspan="7" class="loading-cell">Loading…</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="sessions-pagination">
+                                <button class="btn btn-secondary" id="sessionPrevBtn" type="button">← Prev</button>
+                                <span class="pagination-info" id="sessionPageInfo">Page 1 of 1</span>
+                                <button class="btn btn-secondary" id="sessionNextBtn" type="button">Next →</button>
                             </div>
                         </div>
 

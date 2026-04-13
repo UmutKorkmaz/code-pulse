@@ -18,14 +18,20 @@ suite('TimeTracker Test Suite', () => {
             subscriptions: [],
             workspaceState: {
                 get: () => undefined,
-                update: async () => {},
+                update: async () => {
+                    /* noop */
+                },
                 keys: () => []
             },
             globalState: {
                 get: () => undefined,
-                update: async () => {},
+                update: async () => {
+                    /* noop */
+                },
                 keys: () => [],
-                setKeysForSync: () => {}
+                setKeysForSync: () => {
+                    /* noop */
+                }
             },
             extensionPath: __dirname,
             extensionUri: vscode.Uri.file(__dirname),
@@ -48,7 +54,7 @@ suite('TimeTracker Test Suite', () => {
         configManager = new ConfigManager();
         databaseManager = new DatabaseManager(__dirname);
         await databaseManager.initialize();
-        
+
         timeTracker = new TimeTracker(mockContext, databaseManager, configManager, logger);
     });
 
@@ -71,10 +77,10 @@ suite('TimeTracker Test Suite', () => {
 
     test('TimeTracker should start tracking', async () => {
         await timeTracker.start();
-        
+
         // Wait a bit for session to be created
         await new Promise(resolve => setTimeout(resolve, 100));
-        
+
         const session = timeTracker.getCurrentSession();
         assert.ok(session);
         assert.strictEqual(session.isActive, true);
@@ -85,13 +91,13 @@ suite('TimeTracker Test Suite', () => {
     test('TimeTracker should stop tracking', async () => {
         await timeTracker.start();
         await new Promise(resolve => setTimeout(resolve, 100));
-        
+
         const sessionBefore = timeTracker.getCurrentSession();
         assert.ok(sessionBefore);
         assert.strictEqual(sessionBefore.isActive, true);
-        
+
         await timeTracker.stop();
-        
+
         const sessionAfter = timeTracker.getCurrentSession();
         assert.strictEqual(sessionAfter, null);
     });
@@ -99,26 +105,26 @@ suite('TimeTracker Test Suite', () => {
     test('TimeTracker should toggle tracking', async () => {
         // Initially not tracking
         assert.strictEqual(timeTracker.getCurrentSession(), null);
-        
+
         // Start tracking
         timeTracker.toggleTracking();
         await new Promise(resolve => setTimeout(resolve, 100));
-        
+
         const session1 = timeTracker.getCurrentSession();
         assert.ok(session1);
         assert.strictEqual(session1.isActive, true);
-        
+
         // Stop tracking
         timeTracker.toggleTracking();
         await new Promise(resolve => setTimeout(resolve, 100));
-        
+
         const session2 = timeTracker.getCurrentSession();
         assert.strictEqual(session2, null);
     });
 
     test('TimeTracker should get today stats', async () => {
         const stats = await timeTracker.getTodaysStats();
-        
+
         assert.ok(stats);
         assert.ok(typeof stats.date === 'string');
         assert.ok(typeof stats.totalTime === 'number');
@@ -131,10 +137,10 @@ suite('TimeTracker Test Suite', () => {
 
     test('TimeTracker should get weekly stats', async () => {
         const stats = await timeTracker.getWeeklyStats();
-        
+
         assert.ok(Array.isArray(stats));
         assert.strictEqual(stats.length, 7);
-        
+
         stats.forEach(dayStat => {
             assert.ok(typeof dayStat.date === 'string');
             assert.ok(typeof dayStat.totalTime === 'number');
@@ -146,26 +152,26 @@ suite('TimeTracker Test Suite', () => {
         });
     });
 
-    test('Session should track duration', async function() {
+    test('Session should track duration', async function () {
         this.timeout(5000);
-        
+
         await timeTracker.start();
         await new Promise(resolve => setTimeout(resolve, 100));
-        
+
         const session1 = timeTracker.getCurrentSession();
         assert.ok(session1);
-        
+
         const initialDuration = session1.duration;
-        
+
         // Wait a bit more
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
+
         const session2 = timeTracker.getCurrentSession();
         assert.ok(session2);
-        
+
         // Duration should have increased
         assert.ok(session2.duration > initialDuration);
-        
+
         await timeTracker.stop();
     });
 
@@ -173,12 +179,12 @@ suite('TimeTracker Test Suite', () => {
         // Mock vscode.window.showSaveDialog
         const originalShowSaveDialog = vscode.window.showSaveDialog;
         let saveDialogCalled = false;
-        
+
         (vscode.window.showSaveDialog as any) = async () => {
             saveDialogCalled = true;
             return undefined; // User cancelled
         };
-        
+
         try {
             await timeTracker.exportData();
             assert.ok(saveDialogCalled, 'Save dialog should have been called');

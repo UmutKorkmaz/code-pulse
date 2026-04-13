@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { execFileSync } from 'child_process';
 
 export interface ProjectInfo {
     name: string;
@@ -25,10 +26,31 @@ export class ProjectDetector {
     private currentProject: ProjectInfo | null = null;
     private projectCache: Map<string, ProjectInfo> = new Map();
 
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     constructor() {}
 
     public getCurrentProject(document?: vscode.TextDocument): string {
         return this.getCurrentProjectInfo(document)?.name || 'unknown';
+    }
+
+    public getCurrentBranch(document?: vscode.TextDocument): string | undefined {
+        const projectPath = this.getProjectPath(document);
+        if (!projectPath) {
+            return undefined;
+        }
+
+        try {
+            const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+                cwd: projectPath,
+                encoding: 'utf8',
+                timeout: 3000,
+                stdio: ['ignore', 'pipe', 'ignore']
+            }).trim();
+
+            return branch || undefined;
+        } catch {
+            return undefined;
+        }
     }
 
     public getCurrentProjectInfo(document?: vscode.TextDocument): ProjectInfo | null {
@@ -63,7 +85,7 @@ export class ProjectDetector {
 
         const projectInfo = await this.detectProjectInfo(projectPath);
         this.projectCache.set(projectPath, projectInfo);
-        
+
         return projectInfo;
     }
 
@@ -94,14 +116,16 @@ export class ProjectDetector {
 
         this.projectCache.set(projectPath, fallbackProject);
 
-        void this.detectProjectInfo(projectPath).then(projectInfo => {
-            this.projectCache.set(projectPath, projectInfo);
-            if (this.currentProject?.path === projectPath || this.currentProject === null) {
-                this.currentProject = projectInfo;
-            }
-        }).catch(error => {
-            console.error('Failed to detect project info:', error);
-        });
+        void this.detectProjectInfo(projectPath)
+            .then(projectInfo => {
+                this.projectCache.set(projectPath, projectInfo);
+                if (this.currentProject?.path === projectPath || this.currentProject === null) {
+                    this.currentProject = projectInfo;
+                }
+            })
+            .catch(error => {
+                console.error('Failed to detect project info:', error);
+            });
 
         return fallbackProject;
     }
@@ -136,7 +160,7 @@ export class ProjectDetector {
         try {
             // Check for various project files and determine type
             const projectFiles = await this.getProjectFiles(projectPath);
-            
+
             // JavaScript/TypeScript projects
             if (projectFiles.includes('package.json')) {
                 const packageInfo = await this.readPackageJson(projectPath);
@@ -149,11 +173,13 @@ export class ProjectDetector {
                 }
             }
             // Python projects
-            else if (projectFiles.some(f => ['requirements.txt', 'setup.py', 'pyproject.toml', 'Pipfile'].includes(f))) {
+            else if (
+                projectFiles.some(f => ['requirements.txt', 'setup.py', 'pyproject.toml', 'Pipfile'].includes(f))
+            ) {
                 projectType = 'python';
                 language = 'python';
                 framework = await this.determinePythonFramework(projectPath, projectFiles);
-                
+
                 if (projectFiles.includes('pyproject.toml')) {
                     const pyprojectInfo = await this.readPyprojectToml(projectPath);
                     version = pyprojectInfo?.version;
@@ -164,7 +190,7 @@ export class ProjectDetector {
             else if (projectFiles.some(f => ['pom.xml', 'build.gradle', 'gradle.properties'].includes(f))) {
                 projectType = 'java';
                 language = 'java';
-                
+
                 if (projectFiles.includes('pom.xml')) {
                     framework = 'maven';
                     const pomInfo = await this.readPomXml(projectPath);
@@ -175,7 +201,11 @@ export class ProjectDetector {
                 }
             }
             // .NET projects
-            else if (projectFiles.some(f => f.endsWith('.csproj') || f.endsWith('.sln') || f.endsWith('.fsproj') || f.endsWith('.vbproj'))) {
+            else if (
+                projectFiles.some(
+                    f => f.endsWith('.csproj') || f.endsWith('.sln') || f.endsWith('.fsproj') || f.endsWith('.vbproj')
+                )
+            ) {
                 projectType = 'dotnet';
                 language = this.determineDotNetLanguage(projectFiles);
                 framework = '.NET';
@@ -219,8 +249,9 @@ export class ProjectDetector {
                 const pubspecInfo = await this.readPubspecYaml(projectPath);
                 version = pubspecInfo?.version;
                 description = pubspecInfo?.description;
-            }
-            else if (projectFiles.some(f => ['ios', 'android'].some(dir => f.includes(dir)) && f.endsWith('.xcodeproj'))) {
+            } else if (
+                projectFiles.some(f => ['ios', 'android'].some(dir => f.includes(dir)) && f.endsWith('.xcodeproj'))
+            ) {
                 projectType = 'ios';
                 language = 'swift';
                 framework = 'xcode';
@@ -238,7 +269,6 @@ export class ProjectDetector {
                     language = dominantLanguage;
                 }
             }
-
         } catch (error) {
             console.error('Error detecting project info:', error);
         }
@@ -275,21 +305,43 @@ export class ProjectDetector {
     private determineJSProjectType(packageJson: any, projectFiles: string[]): string {
         if (packageJson.dependencies || packageJson.devDependencies) {
             const deps = { ...packageJson.dependencies, ...packageJson.devDependencies };
-            
-            if (deps.react || deps['@types/react']) return 'react';
-            if (deps.vue || deps['@vue/cli']) return 'vue';
-            if (deps.angular || deps['@angular/core']) return 'angular';
-            if (deps.next) return 'nextjs';
-            if (deps.nuxt) return 'nuxtjs';
-            if (deps.express) return 'express';
-            if (deps.electron) return 'electron';
-            if (deps.svelte) return 'svelte';
+
+            if (deps.react || deps['@types/react']) {
+                return 'react';
+            }
+            if (deps.vue || deps['@vue/cli']) {
+                return 'vue';
+            }
+            if (deps.angular || deps['@angular/core']) {
+                return 'angular';
+            }
+            if (deps.next) {
+                return 'nextjs';
+            }
+            if (deps.nuxt) {
+                return 'nuxtjs';
+            }
+            if (deps.express) {
+                return 'express';
+            }
+            if (deps.electron) {
+                return 'electron';
+            }
+            if (deps.svelte) {
+                return 'svelte';
+            }
         }
-        
-        if (projectFiles.includes('angular.json')) return 'angular';
-        if (projectFiles.includes('nuxt.config.js') || projectFiles.includes('nuxt.config.ts')) return 'nuxtjs';
-        if (projectFiles.includes('next.config.js') || projectFiles.includes('next.config.ts')) return 'nextjs';
-        
+
+        if (projectFiles.includes('angular.json')) {
+            return 'angular';
+        }
+        if (projectFiles.includes('nuxt.config.js') || projectFiles.includes('nuxt.config.ts')) {
+            return 'nuxtjs';
+        }
+        if (projectFiles.includes('next.config.js') || projectFiles.includes('next.config.ts')) {
+            return 'nextjs';
+        }
+
         return 'javascript';
     }
 
@@ -299,19 +351,37 @@ export class ProjectDetector {
     }
 
     private determineJSFramework(packageJson: any): string | undefined {
-        if (!packageJson.dependencies && !packageJson.devDependencies) return undefined;
-        
+        if (!packageJson.dependencies && !packageJson.devDependencies) {
+            return undefined;
+        }
+
         const deps = { ...packageJson.dependencies, ...packageJson.devDependencies };
-        
-        if (deps.react) return 'React';
-        if (deps.vue) return 'Vue.js';
-        if (deps.angular) return 'Angular';
-        if (deps.express) return 'Express.js';
-        if (deps.electron) return 'Electron';
-        if (deps.svelte) return 'Svelte';
-        if (deps.next) return 'Next.js';
-        if (deps.nuxt) return 'Nuxt.js';
-        
+
+        if (deps.react) {
+            return 'React';
+        }
+        if (deps.vue) {
+            return 'Vue.js';
+        }
+        if (deps.angular) {
+            return 'Angular';
+        }
+        if (deps.express) {
+            return 'Express.js';
+        }
+        if (deps.electron) {
+            return 'Electron';
+        }
+        if (deps.svelte) {
+            return 'Svelte';
+        }
+        if (deps.next) {
+            return 'Next.js';
+        }
+        if (deps.nuxt) {
+            return 'Nuxt.js';
+        }
+
         return undefined;
     }
 
@@ -321,24 +391,36 @@ export class ProjectDetector {
             try {
                 const reqPath = path.join(projectPath, 'requirements.txt');
                 const content = await fs.promises.readFile(reqPath, 'utf8');
-                
-                if (content.includes('django')) return 'Django';
-                if (content.includes('flask')) return 'Flask';
-                if (content.includes('fastapi')) return 'FastAPI';
-                if (content.includes('tornado')) return 'Tornado';
-                if (content.includes('pyramid')) return 'Pyramid';
+
+                if (content.includes('django')) {
+                    return 'Django';
+                }
+                if (content.includes('flask')) {
+                    return 'Flask';
+                }
+                if (content.includes('fastapi')) {
+                    return 'FastAPI';
+                }
+                if (content.includes('tornado')) {
+                    return 'Tornado';
+                }
+                if (content.includes('pyramid')) {
+                    return 'Pyramid';
+                }
             } catch (error) {
                 // Ignore file read errors
             }
         }
-        
+
         // Check for framework-specific files
-        if (projectFiles.includes('manage.py')) return 'Django';
+        if (projectFiles.includes('manage.py')) {
+            return 'Django';
+        }
         if (projectFiles.includes('app.py') || projectFiles.includes('main.py')) {
             // Could be Flask or FastAPI, but we can't be certain
             return 'Python Web';
         }
-        
+
         return undefined;
     }
 
@@ -346,10 +428,10 @@ export class ProjectDetector {
         try {
             const pomPath = path.join(projectPath, 'pom.xml');
             const content = await fs.promises.readFile(pomPath, 'utf8');
-            
+
             const versionMatch = content.match(/<version>(.*?)<\/version>/);
             const descriptionMatch = content.match(/<description>(.*?)<\/description>/);
-            
+
             return {
                 version: versionMatch?.[1],
                 description: descriptionMatch?.[1]
@@ -360,9 +442,15 @@ export class ProjectDetector {
     }
 
     private determineDotNetLanguage(projectFiles: string[]): string {
-        if (projectFiles.some(f => f.endsWith('.cs') || f.endsWith('.csproj'))) return 'csharp';
-        if (projectFiles.some(f => f.endsWith('.fs') || f.endsWith('.fsproj'))) return 'fsharp';
-        if (projectFiles.some(f => f.endsWith('.vb') || f.endsWith('.vbproj'))) return 'vb.net';
+        if (projectFiles.some(f => f.endsWith('.cs') || f.endsWith('.csproj'))) {
+            return 'csharp';
+        }
+        if (projectFiles.some(f => f.endsWith('.fs') || f.endsWith('.fsproj'))) {
+            return 'fsharp';
+        }
+        if (projectFiles.some(f => f.endsWith('.vb') || f.endsWith('.vbproj'))) {
+            return 'vb.net';
+        }
         return 'csharp'; // Default to C#
     }
 
@@ -370,9 +458,9 @@ export class ProjectDetector {
         try {
             const goModPath = path.join(projectPath, 'go.mod');
             const content = await fs.promises.readFile(goModPath, 'utf8');
-            
+
             const versionMatch = content.match(/go\s+(\d+\.\d+)/);
-            
+
             return {
                 version: versionMatch?.[1]
             };
@@ -385,10 +473,10 @@ export class ProjectDetector {
         try {
             const cargoPath = path.join(projectPath, 'Cargo.toml');
             const content = await fs.promises.readFile(cargoPath, 'utf8');
-            
+
             const versionMatch = content.match(/version\s*=\s*"(.*?)"/);
             const descriptionMatch = content.match(/description\s*=\s*"(.*?)"/);
-            
+
             return {
                 version: versionMatch?.[1],
                 description: descriptionMatch?.[1]
@@ -403,19 +491,25 @@ export class ProjectDetector {
         if (projectFiles.includes('config.ru') || projectFiles.includes('Rakefile')) {
             return 'Ruby on Rails';
         }
-        
+
         // Check Gemfile for other frameworks
         try {
             const gemfilePath = path.join(projectPath, 'Gemfile');
             const content = await fs.promises.readFile(gemfilePath, 'utf8');
-            
-            if (content.includes('rails')) return 'Ruby on Rails';
-            if (content.includes('sinatra')) return 'Sinatra';
-            if (content.includes('padrino')) return 'Padrino';
+
+            if (content.includes('rails')) {
+                return 'Ruby on Rails';
+            }
+            if (content.includes('sinatra')) {
+                return 'Sinatra';
+            }
+            if (content.includes('padrino')) {
+                return 'Padrino';
+            }
         } catch (error) {
             // Ignore file read errors
         }
-        
+
         return undefined;
     }
 
@@ -430,16 +524,28 @@ export class ProjectDetector {
     }
 
     private determinePHPFramework(composerJson: any): string | undefined {
-        if (!composerJson || !composerJson.require) return undefined;
-        
+        if (!composerJson || !composerJson.require) {
+            return undefined;
+        }
+
         const deps = composerJson.require;
-        
-        if (deps['laravel/framework']) return 'Laravel';
-        if (deps['symfony/framework-bundle']) return 'Symfony';
-        if (deps['cakephp/cakephp']) return 'CakePHP';
-        if (deps['codeigniter4/framework']) return 'CodeIgniter';
-        if (deps['slim/slim']) return 'Slim';
-        
+
+        if (deps['laravel/framework']) {
+            return 'Laravel';
+        }
+        if (deps['symfony/framework-bundle']) {
+            return 'Symfony';
+        }
+        if (deps['cakephp/cakephp']) {
+            return 'CakePHP';
+        }
+        if (deps['codeigniter4/framework']) {
+            return 'CodeIgniter';
+        }
+        if (deps['slim/slim']) {
+            return 'Slim';
+        }
+
         return undefined;
     }
 
@@ -447,10 +553,10 @@ export class ProjectDetector {
         try {
             const pubspecPath = path.join(projectPath, 'pubspec.yaml');
             const content = await fs.promises.readFile(pubspecPath, 'utf8');
-            
+
             const versionMatch = content.match(/version:\s*(.+)/);
             const descriptionMatch = content.match(/description:\s*(.+)/);
-            
+
             return {
                 version: versionMatch?.[1]?.trim(),
                 description: descriptionMatch?.[1]?.trim()
@@ -464,10 +570,10 @@ export class ProjectDetector {
         try {
             const pyprojectPath = path.join(projectPath, 'pyproject.toml');
             const content = await fs.promises.readFile(pyprojectPath, 'utf8');
-            
+
             const versionMatch = content.match(/version\s*=\s*"(.*?)"/);
             const descriptionMatch = content.match(/description\s*=\s*"(.*?)"/);
-            
+
             return {
                 version: versionMatch?.[1],
                 description: descriptionMatch?.[1]
@@ -479,33 +585,33 @@ export class ProjectDetector {
 
     private async detectDominantLanguage(projectPath: string): Promise<string | null> {
         const languageExtensions: { [key: string]: string[] } = {
-            'python': ['.py'],
-            'java': ['.java'],
-            'csharp': ['.cs'],
-            'cpp': ['.cpp', '.cxx', '.cc'],
-            'c': ['.c'],
-            'go': ['.go'],
-            'rust': ['.rs'],
-            'php': ['.php'],
-            'ruby': ['.rb'],
-            'swift': ['.swift'],
-            'kotlin': ['.kt']
+            python: ['.py'],
+            java: ['.java'],
+            csharp: ['.cs'],
+            cpp: ['.cpp', '.cxx', '.cc'],
+            c: ['.c'],
+            go: ['.go'],
+            rust: ['.rs'],
+            php: ['.php'],
+            ruby: ['.rb'],
+            swift: ['.swift'],
+            kotlin: ['.kt']
         };
-        
+
         const extensionCounts: { [key: string]: number } = {};
-        
+
         try {
             const files = await this.getFileRecursively(projectPath, 100); // Limit to 100 files for performance
-            
+
             files.forEach(file => {
                 const ext = path.extname(file);
                 extensionCounts[ext] = (extensionCounts[ext] || 0) + 1;
             });
-            
+
             // Find the most common language
             let maxCount = 0;
             let dominantLanguage: string | null = null;
-            
+
             Object.entries(languageExtensions).forEach(([language, extensions]) => {
                 const count = extensions.reduce((sum, ext) => sum + (extensionCounts[ext] || 0), 0);
                 if (count > maxCount) {
@@ -513,9 +619,8 @@ export class ProjectDetector {
                     dominantLanguage = language;
                 }
             });
-            
+
             return maxCount >= 3 ? dominantLanguage : null; // Require at least 3 files
-            
         } catch (error) {
             return null;
         }
@@ -524,18 +629,20 @@ export class ProjectDetector {
     private async getFileRecursively(dir: string, maxFiles: number): Promise<string[]> {
         const files: string[] = [];
         const stack = [dir];
-        
+
         while (stack.length > 0 && files.length < maxFiles) {
             const currentDir = stack.pop()!;
-            
+
             try {
                 const items = await fs.promises.readdir(currentDir, { withFileTypes: true });
-                
+
                 for (const item of items) {
-                    if (files.length >= maxFiles) break;
-                    
+                    if (files.length >= maxFiles) {
+                        break;
+                    }
+
                     const fullPath = path.join(currentDir, item.name);
-                    
+
                     if (item.isDirectory()) {
                         // Skip common directories that don't contain source code
                         if (!['node_modules', '.git', 'dist', 'build', '__pycache__', '.vscode'].includes(item.name)) {
@@ -549,27 +656,43 @@ export class ProjectDetector {
                 // Ignore directories we can't read
             }
         }
-        
+
         return files;
     }
 
     private async calculateProjectMetrics(projectPath: string): Promise<ProjectMetrics> {
         try {
             const files = await this.getFileRecursively(projectPath, 1000);
-            
+
             let codeFiles = 0;
             let configFiles = 0;
             let testFiles = 0;
-            
-            const codeExtensions = ['.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cs', '.cpp', '.c', '.go', '.rs', '.php', '.rb', '.swift', '.kt'];
+
+            const codeExtensions = [
+                '.js',
+                '.ts',
+                '.jsx',
+                '.tsx',
+                '.py',
+                '.java',
+                '.cs',
+                '.cpp',
+                '.c',
+                '.go',
+                '.rs',
+                '.php',
+                '.rb',
+                '.swift',
+                '.kt'
+            ];
             const configExtensions = ['.json', '.yml', '.yaml', '.xml', '.toml', '.ini', '.cfg', '.conf'];
             const testPatterns = ['/test/', '/tests/', '/spec/', '__test__', '.test.', '.spec.'];
-            
+
             files.forEach(file => {
                 const ext = path.extname(file).toLowerCase();
                 const fileName = path.basename(file).toLowerCase();
                 const filePath = file.toLowerCase();
-                
+
                 // Check if it's a test file
                 if (testPatterns.some(pattern => filePath.includes(pattern) || fileName.includes(pattern))) {
                     testFiles++;
@@ -579,17 +702,19 @@ export class ProjectDetector {
                     configFiles++;
                 }
             });
-            
+
             // Estimate dependencies (simplified)
             let dependencies = 0;
             const packageJsonPath = path.join(projectPath, 'package.json');
             try {
                 const packageJson = JSON.parse(await fs.promises.readFile(packageJsonPath, 'utf8'));
-                dependencies = Object.keys(packageJson.dependencies || {}).length + Object.keys(packageJson.devDependencies || {}).length;
+                dependencies =
+                    Object.keys(packageJson.dependencies || {}).length +
+                    Object.keys(packageJson.devDependencies || {}).length;
             } catch (error) {
                 // Ignore if package.json doesn't exist
             }
-            
+
             // Estimate project size
             let estimatedSize: 'small' | 'medium' | 'large' | 'enterprise';
             if (codeFiles < 20) {
@@ -601,7 +726,7 @@ export class ProjectDetector {
             } else {
                 estimatedSize = 'enterprise';
             }
-            
+
             return {
                 totalFiles: files.length,
                 codeFiles,
@@ -610,7 +735,6 @@ export class ProjectDetector {
                 dependencies,
                 estimatedSize
             };
-            
         } catch (error) {
             return {
                 totalFiles: 0,

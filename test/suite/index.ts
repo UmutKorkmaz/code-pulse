@@ -1,6 +1,7 @@
 import * as path from 'path';
 import Mocha = require('mocha');
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const globModule = require('glob') as {
     glob: (pattern: string, options: { cwd: string }) => Promise<string[]>;
 };
@@ -17,8 +18,9 @@ export function run(): Promise<void> {
     const testsRoot = path.resolve(__dirname, '..');
 
     return new Promise((c, e) => {
-        globModule.glob('**/**.test.js', { cwd: testsRoot })
-            .then((files) => {
+        globModule
+            .glob('**/**.test.js', { cwd: testsRoot })
+            .then(files => {
                 // Add files to the test suite
                 files.forEach((file: string) => mocha.addFile(path.resolve(testsRoot, file)));
 

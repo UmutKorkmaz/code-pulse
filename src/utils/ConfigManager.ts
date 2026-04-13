@@ -47,7 +47,7 @@ export class ConfigManager {
 
     constructor() {
         this.config = vscode.workspace.getConfiguration(ConfigManager.CONFIG_SECTION);
-        
+
         // Listen for configuration changes
         vscode.workspace.onDidChangeConfiguration((event) => {
             if (event.affectsConfiguration(ConfigManager.CONFIG_SECTION)) {
@@ -110,7 +110,7 @@ export class ConfigManager {
     public async updateConfig(updates: Partial<CodePulseConfig>): Promise<void> {
         const currentConfig = this.getAll();
         const mergedConfig = this.mergeConfigs(currentConfig, updates);
-        
+
         await this.setConfig(mergedConfig);
     }
 
@@ -277,7 +277,7 @@ export class ConfigManager {
 
     public async promptForMissingConfig(): Promise<boolean> {
         const errors = this.getConfigurationErrors();
-        
+
         if (errors.length === 0) {
             return true;
         }

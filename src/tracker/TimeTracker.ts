@@ -63,6 +63,7 @@ interface SessionContext {
     project: string;
     language: string;
     file: string;
+    branch?: string;
 }
 
 export class TimeTracker {
@@ -85,10 +86,8 @@ export class TimeTracker {
         private logger: Logger
     ) {
         this.heartbeatManager = new HeartbeatManager(this.configManager, this.logger);
-        this.activityDetector = new ActivityDetector(
-            this.configManager,
-            this.logger,
-            async (event) => this.handleActivityEvent(event)
+        this.activityDetector = new ActivityDetector(this.configManager, this.logger, async event =>
+            this.handleActivityEvent(event)
         );
         this.languageDetector = new LanguageDetector();
         this.projectDetector = new ProjectDetector();
@@ -117,6 +116,8 @@ export class TimeTracker {
             this.heartbeatManager.start(() => this.sendHeartbeat());
         } catch (error) {
             this.isTracking = false;
+            this.heartbeatManager.stop();
+            this.activityDetector.stop();
             const logError = error instanceof Error ? error : new Error(String(error));
             this.logger.error('Failed to start time tracking', logError);
             throw error;
@@ -145,11 +146,17 @@ export class TimeTracker {
         }
     }
 
-    public toggleTracking(): void {
-        if (this.isTracking) {
-            void this.stop();
-        } else {
-            void this.start();
+    public async toggleTracking(): Promise<void> {
+        try {
+            if (this.isTracking) {
+                await this.stop();
+            } else {
+                await this.start();
+            }
+        } catch (error) {
+            const logError = error instanceof Error ? error : new Error(String(error));
+            this.logger.error('Failed to toggle tracking', logError);
+            vscode.window.showErrorMessage(`CodePulse: Failed to toggle tracking — ${logError.message}`);
         }
     }
 
@@ -183,8 +190,8 @@ export class TimeTracker {
             await vscode.window.showInformationMessage(message, { modal: true });
         } catch (error) {
             const logError = error instanceof Error ? error : new Error(String(error));
-            this.logger.error('Failed to show today\'s stats', logError);
-            vscode.window.showErrorMessage('Failed to load today\'s statistics.');
+            this.logger.error("Failed to show today's stats", logError);
+            vscode.window.showErrorMessage("Failed to load today's statistics.");
         }
     }
 
@@ -274,6 +281,7 @@ export class TimeTracker {
             project: context.project,
             language: context.language,
             file: context.file,
+            branch: context.branch,
             isActive: true,
             heartbeats: 0,
             keystrokes: 0,
@@ -300,21 +308,45 @@ export class TimeTracker {
         this.currentSession.endTime = endTime;
         this.currentSession.isActive = false;
 
-        if (this.configManager.get('analytics.enableProductivityScore', true)) {
-            this.currentSession.productivityScore = await this.productivityScorer.calculateSessionScore(this.currentSession);
-        } else {
-            this.currentSession.productivityScore = undefined;
-        }
-
-        await this.databaseManager.updateSession(this.currentSession);
-        await this.finalizeSegment(endTime);
+        // Save session and finalize segment immediately — don't block on scoring
+        await Promise.all([this.databaseManager.updateSession(this.currentSession), this.finalizeSegment(endTime)]);
 
         if (formatLocalDate(this.currentSession.startTime) === formatLocalDate(endTime)) {
-            await this.databaseManager.incrementDailyRollup(formatLocalDate(this.currentSession.startTime), this.currentSession);
+            await this.databaseManager.incrementDailyRollup(
+                formatLocalDate(this.currentSession.startTime),
+                this.currentSession
+            );
+        }
+
+        // Run productivity scoring and cloud sync in background (non-blocking)
+        const session = { ...this.currentSession };
+        if (this.configManager.get('analytics.enableProductivityScore', true)) {
+            this.productivityScorer
+                .calculateSessionScore(session)
+                .then(score => {
+                    session.productivityScore = score;
+                    this.databaseManager.updateSession(session).catch(err => {
+                        this.logger.warn(
+                            'Failed to save productivity score',
+                            err instanceof Error ? err : new Error(String(err))
+                        );
+                    });
+                })
+                .catch(err => {
+                    this.logger.warn(
+                        'Failed to calculate productivity score',
+                        err instanceof Error ? err : new Error(String(err))
+                    );
+                });
         }
 
         if (this.cloudSync) {
-            await this.cloudSync.syncSession(this.currentSession);
+            this.cloudSync.syncSession(session).catch(err => {
+                this.logger.warn(
+                    'Failed to sync session to cloud',
+                    err instanceof Error ? err : new Error(String(err))
+                );
+            });
         }
 
         this.logger.info(
@@ -353,7 +385,7 @@ export class TimeTracker {
 
     private setupEventListeners(): void {
         this.context.subscriptions.push(
-            vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+            vscode.window.onDidChangeActiveTextEditor(async editor => {
                 if (this.isTracking && editor) {
                     await this.handleFileChange(editor);
                 }
@@ -361,7 +393,7 @@ export class TimeTracker {
         );
 
         this.context.subscriptions.push(
-            vscode.workspace.onDidChangeTextDocument((event) => {
+            vscode.workspace.onDidChangeTextDocument(event => {
                 if (this.isTracking && this.currentSession) {
                     this.handleTextChange(event);
                 }
@@ -376,13 +408,7 @@ export class TimeTracker {
             })
         );
 
-        this.context.subscriptions.push(
-            vscode.workspace.onDidChangeConfiguration((event) => {
-                if (event.affectsConfiguration('codepulse')) {
-                    void this.refreshConfiguration();
-                }
-            })
-        );
+        // Configuration changes are handled by extension.ts via synchronizeRuntimeConfiguration()
     }
 
     private async handleFileChange(editor: vscode.TextEditor): Promise<void> {
@@ -419,13 +445,12 @@ export class TimeTracker {
             return;
         }
 
-        event.contentChanges.forEach((change) => {
+        event.contentChanges.forEach(change => {
             this.currentSession!.keystrokes += change.text.length;
 
             const linesAdded = (change.text.match(/\n/g) || []).length;
-            const linesRemoved = change.rangeLength > 0
-                ? Math.max(0, change.range.end.line - change.range.start.line)
-                : 0;
+            const linesRemoved =
+                change.rangeLength > 0 ? Math.max(0, change.range.end.line - change.range.start.line) : 0;
 
             this.currentSession!.linesAdded += linesAdded;
             this.currentSession!.linesRemoved += linesRemoved;
@@ -443,16 +468,17 @@ export class TimeTracker {
     }
 
     private async handleActivityEvent(event: ActivityEvent): Promise<void> {
-        const project = this.currentSession?.project || this.getSessionContext(vscode.window.activeTextEditor?.document).project;
+        const project =
+            this.currentSession?.project || this.getSessionContext(vscode.window.activeTextEditor?.document).project;
         const sanitizedEvent: ActivityEvent = {
             ...event,
             sessionId: this.currentSession?.id,
             file: event.file
                 ? sanitizeFilePath(
-                    event.file,
-                    this.configManager.shouldTrackFilenames(),
-                    this.configManager.shouldAnonymizeData()
-                )
+                      event.file,
+                      this.configManager.shouldTrackFilenames(),
+                      this.configManager.shouldAnonymizeData()
+                  )
                 : undefined,
             project: sanitizeProjectName(project, this.configManager.shouldAnonymizeData()),
             isIdle: this.activityDetector.isIdle()
@@ -509,7 +535,8 @@ export class TimeTracker {
         context: SessionContext,
         now: Date
     ): Promise<void> {
-        const shouldRotateSegment = !this.currentSegment ||
+        const shouldRotateSegment =
+            !this.currentSegment ||
             this.currentSegment.segmentType !== segmentType ||
             this.currentSegment.project !== context.project ||
             this.currentSegment.language !== context.language ||
@@ -556,11 +583,13 @@ export class TimeTracker {
         const projectName = this.projectDetector.getCurrentProject(document);
         const fileName = document?.fileName || 'untitled';
         const language = document ? this.languageDetector.detectLanguage(document) : 'unknown';
+        const branch = this.projectDetector.getCurrentBranch(document);
 
         return {
             project: sanitizeProjectName(projectName, anonymizeData),
             language,
-            file: sanitizeFilePath(fileName, trackFilenames, anonymizeData)
+            file: sanitizeFilePath(fileName, trackFilenames, anonymizeData),
+            branch
         };
     }
 
@@ -574,9 +603,7 @@ export class TimeTracker {
             return { active: 0, idle: 0 };
         }
 
-        return this.activityDetector.isIdle()
-            ? { active: 0, idle: elapsed }
-            : { active: elapsed, idle: 0 };
+        return this.activityDetector.isIdle() ? { active: 0, idle: elapsed } : { active: elapsed, idle: 0 };
     }
 
     private formatStatsMessage(stats: DailyStats): string {
@@ -600,7 +627,7 @@ export class TimeTracker {
             return fallback;
         }
 
-        return entries.reduce((topEntry, currentEntry) => currentEntry[1] > topEntry[1] ? currentEntry : topEntry)[0];
+        return entries.reduce((topEntry, currentEntry) => (currentEntry[1] > topEntry[1] ? currentEntry : topEntry))[0];
     }
 
     private generateSessionId(): string {

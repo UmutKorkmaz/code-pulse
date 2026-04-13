@@ -21,7 +21,7 @@ suite('ConfigManager Test Suite', () => {
 
     test('Should get all configuration', () => {
         const config = configManager.getAll();
-        
+
         assert.ok(config);
         assert.strictEqual(typeof config.enabled, 'boolean');
         assert.strictEqual(typeof config.heartbeatInterval, 'number');
@@ -29,25 +29,25 @@ suite('ConfigManager Test Suite', () => {
         assert.strictEqual(typeof config.trackFileChanges, 'boolean');
         assert.strictEqual(typeof config.trackProjectSwitching, 'boolean');
         assert.strictEqual(typeof config.showStatusBar, 'boolean');
-        
+
         // Test nested objects
         assert.ok(config.cloudSync);
         assert.strictEqual(typeof config.cloudSync.enabled, 'boolean');
         assert.strictEqual(typeof config.cloudSync.apiUrl, 'string');
         assert.strictEqual(typeof config.cloudSync.apiKey, 'string');
-        
+
         assert.ok(config.analytics);
         assert.strictEqual(typeof config.analytics.enableProductivityScore, 'boolean');
         assert.strictEqual(typeof config.analytics.enableLanguageStats, 'boolean');
-        
+
         assert.ok(config.localServer);
         assert.strictEqual(typeof config.localServer.enabled, 'boolean');
         assert.strictEqual(typeof config.localServer.port, 'number');
-        
+
         assert.ok(config.privacy);
         assert.strictEqual(typeof config.privacy.trackFilenames, 'boolean');
         assert.strictEqual(typeof config.privacy.trackFileContent, 'boolean');
-        
+
         assert.ok(config.ui);
         assert.strictEqual(typeof config.ui.theme, 'string');
         assert.strictEqual(typeof config.ui.compactMode, 'boolean');
@@ -59,11 +59,11 @@ suite('ConfigManager Test Suite', () => {
             heartbeatInterval: 120,
             idleThreshold: 300
         };
-        
+
         const validResult = configManager.validateConfig(validConfig);
         assert.strictEqual(validResult.valid, true);
         assert.strictEqual(validResult.errors.length, 0);
-        
+
         // Invalid configuration
         const invalidConfig: Partial<CodePulseConfig> = {
             heartbeatInterval: 10, // Too low
@@ -78,11 +78,11 @@ suite('ConfigManager Test Suite', () => {
                 timeout: 30000
             }
         };
-        
+
         const invalidResult = configManager.validateConfig(invalidConfig);
         assert.strictEqual(invalidResult.valid, false);
         assert.ok(invalidResult.errors.length > 0);
-        
+
         // Check specific error messages
         assert.ok(invalidResult.errors.some(err => err.includes('Heartbeat interval')));
         assert.ok(invalidResult.errors.some(err => err.includes('Idle threshold')));
@@ -118,11 +118,11 @@ suite('ConfigManager Test Suite', () => {
         const shouldTrackFilenames = configManager.shouldTrackFilenames();
         const shouldTrackFileContent = configManager.shouldTrackFileContent();
         const shouldAnonymizeData = configManager.shouldAnonymizeData();
-        
+
         assert.strictEqual(typeof shouldTrackFilenames, 'boolean');
         assert.strictEqual(typeof shouldTrackFileContent, 'boolean');
         assert.strictEqual(typeof shouldAnonymizeData, 'boolean');
-        
+
         // Default values
         assert.strictEqual(shouldTrackFilenames, true);
         assert.strictEqual(shouldTrackFileContent, false);
@@ -146,20 +146,20 @@ suite('ConfigManager Test Suite', () => {
     test('Should support configuration listeners', () => {
         let listenerCalled = false;
         let receivedConfig: any = null;
-        
+
         const listener = (config: any) => {
             listenerCalled = true;
             receivedConfig = config;
         };
-        
+
         configManager.addChangeListener(listener);
-        
+
         // Simulate configuration change
         configManager.reloadConfiguration();
-        
+
         // Remove listener
         configManager.removeChangeListener(listener);
-        
+
         // Note: In a real test environment, we would need to actually change
         // the VS Code configuration to trigger the listener
         assert.ok(true, 'Listener management test passed');

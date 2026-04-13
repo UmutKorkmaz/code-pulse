@@ -59,14 +59,11 @@ export interface DetailedAnalytics {
 }
 
 export class AnalyticsEngine {
-    constructor(
-        private databaseManager: DatabaseManager,
-        private configManager: ConfigManager
-    ) {}
+    constructor(private databaseManager: DatabaseManager, private configManager: ConfigManager) {}
 
     public async getDailyStats(date: string): Promise<DailyStats> {
         const sessions = await this.databaseManager.getSessionsByDate(date);
-        
+
         if (sessions.length === 0) {
             return {
                 date,
@@ -133,12 +130,12 @@ export class AnalyticsEngine {
 
     public async getWeeklyStats(startDate: Date, endDate: Date): Promise<DailyStats[]> {
         const dates = eachLocalDate(startDate, endDate);
-        return Promise.all(dates.map((date) => this.getDailyStats(date)));
+        return Promise.all(dates.map(date => this.getDailyStats(date)));
     }
 
     public async getDetailedAnalytics(startDate: Date, endDate: Date): Promise<DetailedAnalytics> {
         const sessions = await this.databaseManager.getSessionsByDateRange(startDate, endDate);
-        
+
         if (sessions.length === 0) {
             return this.getEmptyAnalytics();
         }
@@ -180,7 +177,7 @@ export class AnalyticsEngine {
 
         const sessions = await this.databaseManager.getSessionsByDateRange(startDate, endDate);
         const totalTime = sessions.reduce((sum, session) => sum + session.duration, 0);
-        
+
         return this.calculateLanguageStats(sessions, totalTime);
     }
 
@@ -191,7 +188,7 @@ export class AnalyticsEngine {
 
         const sessions = await this.databaseManager.getSessionsByDateRange(startDate, endDate);
         const totalTime = sessions.reduce((sum, session) => sum + session.duration, 0);
-        
+
         return this.calculateProjectStats(sessions, totalTime);
     }
 
@@ -205,7 +202,7 @@ export class AnalyticsEngine {
 
     private calculateTimeDistribution(sessions: any[]): TimeDistribution {
         const distribution: TimeDistribution = {};
-        
+
         // Initialize all hours
         for (let hour = 0; hour < 24; hour++) {
             distribution[hour] = 0;
@@ -221,7 +218,7 @@ export class AnalyticsEngine {
 
     private calculateWeeklyPattern(sessions: any[]): WeeklyPattern {
         const pattern: WeeklyPattern = {};
-        
+
         // Initialize all days
         for (let day = 0; day < 7; day++) {
             pattern[day] = 0;
@@ -239,10 +236,10 @@ export class AnalyticsEngine {
         const trends: ProductivityTrend[] = [];
         for (const dateString of eachLocalDate(startDate, endDate)) {
             const sessions = await this.databaseManager.getSessionsByDate(dateString);
-            
+
             const totalTime = sessions.reduce((sum, session) => sum + session.duration, 0);
             const activeTime = totalTime;
-            
+
             const productivity = this.calculateProductivityMetrics(sessions);
 
             trends.push({
@@ -258,11 +255,14 @@ export class AnalyticsEngine {
     }
 
     private async calculateLanguageStats(sessions: any[], totalTime: number): Promise<LanguageStats[]> {
-        const languageMap = new Map<string, {
-            totalTime: number;
-            sessions: number;
-            productivitySum: number;
-        }>();
+        const languageMap = new Map<
+            string,
+            {
+                totalTime: number;
+                sessions: number;
+                productivitySum: number;
+            }
+        >();
 
         sessions.forEach(session => {
             const current = languageMap.get(session.language) || {
@@ -291,12 +291,15 @@ export class AnalyticsEngine {
     }
 
     private async calculateProjectStats(sessions: any[], totalTime: number): Promise<ProjectStats[]> {
-        const projectMap = new Map<string, {
-            totalTime: number;
-            sessions: number;
-            productivitySum: number;
-            languages: Map<string, number>;
-        }>();
+        const projectMap = new Map<
+            string,
+            {
+                totalTime: number;
+                sessions: number;
+                productivitySum: number;
+                languages: Map<string, number>;
+            }
+        >();
 
         sessions.forEach(session => {
             const current = projectMap.get(session.project) || {
@@ -309,10 +312,7 @@ export class AnalyticsEngine {
             current.totalTime += session.duration;
             current.sessions += 1;
             current.productivitySum += session.productivityScore || 0;
-            current.languages.set(
-                session.language,
-                (current.languages.get(session.language) || 0) + session.duration
-            );
+            current.languages.set(session.language, (current.languages.get(session.language) || 0) + session.duration);
 
             projectMap.set(session.project, current);
         });
@@ -348,7 +348,7 @@ export class AnalyticsEngine {
         const date = new Date(currentDate);
         date.setHours(23, 59, 59, 999); // End of day
 
-        while (true) {
+        for (;;) {
             const dateString = formatLocalDate(date);
             const sessions = await this.databaseManager.getSessionsByDate(dateString);
             const hasCoding = sessions.length > 0 && sessions.some(s => s.duration > 0);
@@ -361,7 +361,7 @@ export class AnalyticsEngine {
                 if (!tempStreakStart) {
                     tempStreakStart = new Date(date);
                 }
-                
+
                 if (currentStreak > longestStreak) {
                     longestStreak = currentStreak;
                     longestStreakEnd = new Date(date);
@@ -376,7 +376,7 @@ export class AnalyticsEngine {
             }
 
             date.setDate(date.getDate() - 1);
-            
+
             // Prevent infinite loop - check only last 365 days
             if (new Date().getTime() - date.getTime() > 365 * 24 * 60 * 60 * 1000) {
                 break;
@@ -391,7 +391,10 @@ export class AnalyticsEngine {
         };
     }
 
-    private async calculateTopFiles(sessions: any[], totalTime: number): Promise<{ file: string; time: number; percentage: number }[]> {
+    private async calculateTopFiles(
+        sessions: any[],
+        totalTime: number
+    ): Promise<{ file: string; time: number; percentage: number }[]> {
         const fileMap = new Map<string, number>();
 
         sessions.forEach(session => {
@@ -447,7 +450,7 @@ export class AnalyticsEngine {
         if (!filePath) {
             return 'untitled';
         }
-        
+
         const parts = filePath.split(/[/\\]/);
         return parts[parts.length - 1] || 'untitled';
     }

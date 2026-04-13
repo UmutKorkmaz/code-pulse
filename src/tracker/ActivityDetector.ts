@@ -14,13 +14,13 @@ export interface ActivityEvent {
 }
 
 export class ActivityDetector {
-    private isRunning: boolean = false;
+    private isRunning = false;
     private idleThresholdMs: number;
     private lastActivityTime: number = Date.now();
     private idleCheckTimer: NodeJS.Timeout | null = null;
     private activityEvents: ActivityEvent[] = [];
     private eventListeners: vscode.Disposable[] = [];
-    private currentIdleState: boolean = false;
+    private currentIdleState = false;
 
     constructor(
         private configManager: ConfigManager,
@@ -39,9 +39,9 @@ export class ActivityDetector {
         this.isRunning = true;
         this.lastActivityTime = Date.now();
         this.currentIdleState = false;
-        
+
         this.logger.info(`Starting activity detector with idle threshold: ${this.idleThresholdMs}ms`);
-        
+
         this.setupEventListeners();
         this.startIdleDetection();
     }
@@ -52,7 +52,7 @@ export class ActivityDetector {
         }
 
         this.logger.info('Stopping activity detector');
-        
+
         this.isRunning = false;
         this.cleanupEventListeners();
         this.stopIdleDetection();
@@ -61,7 +61,7 @@ export class ActivityDetector {
 
     public updateConfiguration(): void {
         const newIdleThresholdMs = this.configManager.get('idleThreshold', 300) * 1000;
-        
+
         if (newIdleThresholdMs !== this.idleThresholdMs) {
             this.logger.info(`Updating idle threshold from ${this.idleThresholdMs}ms to ${newIdleThresholdMs}ms`);
             this.idleThresholdMs = newIdleThresholdMs;
@@ -84,12 +84,12 @@ export class ActivityDetector {
         return Date.now() - this.lastActivityTime;
     }
 
-    public getRecentActivityEvents(minutes: number = 5): ActivityEvent[] {
+    public getRecentActivityEvents(minutes = 5): ActivityEvent[] {
         const cutoffTime = Date.now() - (minutes * 60 * 1000);
         return this.activityEvents.filter(event => event.timestamp.getTime() >= cutoffTime);
     }
 
-    public getActivityStats(hours: number = 1): {
+    public getActivityStats(hours = 1): {
         totalEvents: number;
         eventsByType: { [key: string]: number };
         activeTimeMs: number;
@@ -97,7 +97,7 @@ export class ActivityDetector {
     } {
         const cutoffTime = Date.now() - (hours * 60 * 60 * 1000);
         const recentEvents = this.activityEvents.filter(event => event.timestamp.getTime() >= cutoffTime);
-        
+
         const eventsByType: { [key: string]: number } = {};
         recentEvents.forEach(event => {
             eventsByType[event.type] = (eventsByType[event.type] || 0) + 1;
@@ -107,7 +107,7 @@ export class ActivityDetector {
         const totalTimeMs = hours * 60 * 60 * 1000;
         const timeSinceLastActivity = this.getTimeSinceLastActivity();
         const activeTimeMs = Math.max(0, totalTimeMs - Math.min(timeSinceLastActivity, totalTimeMs));
-        
+
         return {
             totalEvents: recentEvents.length,
             eventsByType,
@@ -238,7 +238,7 @@ export class ActivityDetector {
         }
 
         this.lastActivityTime = Date.now();
-        
+
         // Update idle state
         if (this.currentIdleState) {
             this.currentIdleState = false;
@@ -283,7 +283,7 @@ export class ActivityDetector {
         const timeSinceLastActivity = this.getTimeSinceLastActivity();
         const wasIdle = this.currentIdleState;
         this.currentIdleState = timeSinceLastActivity >= this.idleThresholdMs;
-        
+
         if (this.currentIdleState !== wasIdle) {
             if (this.currentIdleState) {
                 this.logger.debug(`User became idle (no activity for ${Math.round(timeSinceLastActivity / 1000)}s)`);

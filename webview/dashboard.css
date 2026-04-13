@@ -1,481 +1,574 @@
-/* Dashboard specific styles for CodePulse */
+/* Code Pulse — Full Dashboard Styles
+ * Inspired by GitLens Home and GitHub Insights panels.
+ */
 
-/* Import main styles */
 @import './main.css';
 
-/* Dashboard Layout */
 .dashboard-container {
     min-height: 100vh;
-    background-color: var(--vscode-editor-background);
-    color: var(--vscode-foreground);
+    background: var(--vscode-editor-background);
+    color: var(--cp-fg);
+    padding: 0;
 }
 
+/* ---------- Header ---------- */
 .dashboard-header {
-    background-color: var(--vscode-sideBar-background);
-    border-bottom: 1px solid var(--vscode-panel-border);
-    padding: var(--spacing-lg);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background: var(--cp-bg);
+    border-bottom: 1px solid var(--cp-border);
+    padding: 14px 24px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    backdrop-filter: blur(8px);
 }
 
 .header-content {
-    max-width: 1400px;
+    max-width: 1280px;
     margin: 0 auto;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: var(--spacing-md);
+    gap: var(--cp-gap-md);
 }
 
 .dashboard-title {
-    font-size: 1.8em;
-    font-weight: 700;
-    color: var(--primary-color);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--cp-fg);
     margin: 0;
+    letter-spacing: -0.01em;
 }
 
 .header-actions {
     display: flex;
     align-items: center;
-    gap: var(--spacing-md);
+    gap: var(--cp-gap-md);
 }
 
-/* Main Dashboard Content */
+/* ---------- Main Grid ---------- */
 .dashboard-main {
-    max-width: 1400px;
+    max-width: 1280px;
     margin: 0 auto;
-    padding: var(--spacing-xl);
+    padding: 20px 24px 40px;
 }
 
-body.compact-mode .dashboard-main {
-    padding: var(--spacing-md);
-}
-
-body.compact-mode .dashboard-grid {
-    gap: var(--spacing-md);
-}
-
-body.compact-mode .card {
-    padding: var(--spacing-md);
-}
-
-/* Dashboard Grid */
 .dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: var(--spacing-lg);
+    grid-template-columns: repeat(12, 1fr);
+    gap: 14px;
     grid-auto-rows: min-content;
 }
 
-/* Card Styles */
+/* ---------- Cards ---------- */
 .card {
-    background: var(--vscode-sideBar-background);
-    border: 1px solid var(--vscode-panel-border);
-    border-radius: var(--radius);
-    padding: var(--spacing-lg);
-    box-shadow: var(--shadow);
-    transition: all 0.3s ease;
+    background: var(--cp-bg);
+    border: 1px solid var(--cp-border);
+    border-radius: 6px;
+    padding: 16px 18px;
+    transition: border-color 0.15s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: color-mix(in srgb, var(--cp-border) 60%, var(--cp-accent));
 }
 
 .card-title {
-    font-size: 1.2em;
+    font-size: 11px;
     font-weight: 600;
-    color: var(--vscode-foreground);
-    margin: 0 0 var(--spacing-md) 0;
-    padding-bottom: var(--spacing-sm);
-    border-bottom: 1px solid var(--vscode-panel-border);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--cp-muted);
+    margin: 0;
+    padding: 0;
+    border: none;
 }
 
-/* Current Session Card */
+/* Layout spans */
+.current-session-card { grid-column: span 8; }
+.stats-card            { grid-column: span 4; }
+.chart-card            { grid-column: span 12; }
+.breakdown-card        { grid-column: span 6; }
+.activity-card         { grid-column: span 12; }
+
+/* ---------- Current Session Card ---------- */
 .current-session-card {
-    grid-column: span 2;
-    text-align: center;
+    border-left: 2px solid var(--cp-accent);
 }
 
 .current-session-content {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: var(--spacing-md);
+    gap: 4px;
 }
 
 .session-timer {
-    font-size: 3.5em;
-    font-weight: 300;
-    font-family: 'Courier New', monospace;
-    color: var(--primary-color);
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    font-size: 40px;
+    font-weight: 200;
+    font-family: var(--vscode-editor-font-family, 'SF Mono', Menlo, monospace);
+    font-variant-numeric: tabular-nums;
+    color: var(--cp-fg);
+    letter-spacing: 0.01em;
+    line-height: 1;
 }
 
 .session-info {
-    color: var(--vscode-descriptionForeground);
-    font-size: 1.1em;
-    line-height: 1.6;
+    color: var(--cp-muted);
+    font-size: 12px;
+    line-height: 1.8;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 2px 16px;
+    margin-top: 4px;
 }
 
 .session-info div {
-    margin: var(--spacing-xs) 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-/* Stats Card */
-.stats-card {
-    grid-column: span 2;
+.session-info strong {
+    font-weight: 500;
+    color: var(--cp-fg);
+    opacity: 0.7;
+    margin-right: 4px;
 }
 
+/* ---------- Stats Card ---------- */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: var(--spacing-md);
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
 }
 
 .stat-item {
-    text-align: center;
-    padding: var(--spacing-md);
-    background: var(--vscode-editor-background);
-    border: 1px solid var(--vscode-panel-border);
-    border-radius: var(--radius);
-    transition: transform 0.2s ease;
+    padding: 10px 12px;
+    background: var(--cp-bg-elevated);
+    border: 1px solid var(--cp-border);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    transition: border-color 0.15s ease;
 }
 
 .stat-item:hover {
-    transform: scale(1.05);
+    border-color: var(--cp-accent);
+    background: var(--cp-bg-elevated);
 }
 
-.stat-value {
-    font-size: 1.8em;
-    font-weight: 700;
-    color: var(--primary-color);
-    line-height: 1.2;
-    display: block;
+.stat-item .stat-value {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--cp-fg);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
 }
 
-.stat-label {
-    font-size: 0.9em;
-    color: var(--vscode-descriptionForeground);
-    margin-top: var(--spacing-xs);
+.stat-item .stat-label {
+    font-size: 10px;
+    font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.06em;
+    color: var(--cp-muted);
 }
 
-/* Chart Card */
-.chart-card {
-    grid-column: span 2;
-}
-
+/* ---------- Chart Container ---------- */
 .chart-container {
     position: relative;
-    height: 300px;
-    margin-top: var(--spacing-md);
+    height: 260px;
+}
+
+.breakdown-card .chart-container {
+    height: 220px;
 }
 
 .chart-container canvas {
     max-height: 100% !important;
 }
 
-/* Breakdown Cards */
-.breakdown-card {
-    display: flex;
-    flex-direction: column;
-}
-
+/* ---------- Breakdown Lists ---------- */
 .breakdown-content {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-md);
-    flex: 1;
+    gap: 12px;
 }
 
 .breakdown-list {
-    flex: 1;
-    max-height: 300px;
+    max-height: 200px;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-right: -6px;
+    padding-right: 6px;
+}
+
+.breakdown-list::-webkit-scrollbar {
+    width: 10px;
+}
+
+.breakdown-list::-webkit-scrollbar-thumb {
+    background: var(--vscode-scrollbarSlider-background);
+    border-radius: 5px;
+}
+
+.breakdown-list::-webkit-scrollbar-thumb:hover {
+    background: var(--vscode-scrollbarSlider-hoverBackground);
 }
 
 .breakdown-item {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr auto auto;
     align-items: center;
-    padding: var(--spacing-sm) 0;
-    border-bottom: 1px solid var(--vscode-panel-border);
+    gap: 10px;
+    padding: 4px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    transition: background 0.1s ease;
 }
 
-.breakdown-item:last-child {
-    border-bottom: none;
+.breakdown-item:hover {
+    background: var(--cp-hover);
 }
 
 .breakdown-name {
-    font-weight: 500;
-    color: var(--vscode-foreground);
-    flex: 1;
-    margin-right: var(--spacing-sm);
+    color: var(--cp-fg);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .breakdown-time {
-    color: var(--vscode-descriptionForeground);
-    font-family: 'Courier New', monospace;
-    font-size: 0.9em;
+    color: var(--cp-muted);
+    font-variant-numeric: tabular-nums;
+    font-family: var(--vscode-editor-font-family, 'SF Mono', Menlo, monospace);
+    font-size: 11px;
 }
 
 .breakdown-percentage {
-    color: var(--primary-color);
-    font-weight: 600;
-    margin-left: var(--spacing-sm);
-    min-width: 45px;
+    color: var(--cp-accent);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
     text-align: right;
+    min-width: 36px;
+    font-size: 11px;
 }
 
-/* Activity Card */
-.activity-card {
-    grid-column: span 2;
-}
-
+/* ---------- Activity List ---------- */
 .activity-list {
-    max-height: 400px;
+    max-height: 420px;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .activity-item {
-    display: flex;
-    gap: var(--spacing-md);
-    padding: var(--spacing-md);
-    border: 1px solid var(--vscode-panel-border);
-    border-radius: var(--radius);
-    margin-bottom: var(--spacing-sm);
-    background: var(--vscode-editor-background);
-    transition: background-color 0.2s ease;
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    gap: 16px;
+    padding: 8px 10px;
+    border-radius: 3px;
+    font-size: 12px;
+    transition: background 0.1s ease;
 }
 
 .activity-item:hover {
-    background: var(--vscode-list-hoverBackground);
-}
-
-.activity-item:last-child {
-    margin-bottom: 0;
+    background: var(--cp-hover);
 }
 
 .activity-time {
-    font-family: 'Courier New', monospace;
-    font-size: 0.85em;
-    color: var(--vscode-descriptionForeground);
-    min-width: 80px;
+    font-family: var(--vscode-editor-font-family, 'SF Mono', Menlo, monospace);
+    font-size: 11px;
+    color: var(--cp-muted);
+    font-variant-numeric: tabular-nums;
 }
 
 .activity-description {
-    flex: 1;
-    color: var(--vscode-foreground);
+    color: var(--cp-fg);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.activity-description > div:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .activity-meta {
-    font-size: 0.85em;
-    color: var(--vscode-descriptionForeground);
-    margin-top: var(--spacing-xs);
+    font-size: 11px;
+    color: var(--cp-muted);
 }
 
-/* Progress bars */
-.progress-bar-container {
-    background: var(--vscode-panel-border);
-    border-radius: 10px;
-    overflow: hidden;
-    height: 8px;
-    margin: var(--spacing-xs) 0;
+/* ---------- Sessions Table ---------- */
+.sessions-card {
+    grid-column: span 12;
 }
 
-.progress-bar {
-    height: 100%;
-    background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
-    transition: width 0.3s ease;
-    border-radius: 10px;
-}
-
-/* Filter Controls */
-.filter-controls {
+.sessions-header {
     display: flex;
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-lg);
-    padding: var(--spacing-md);
-    background: var(--vscode-sideBar-background);
-    border: 1px solid var(--vscode-panel-border);
-    border-radius: var(--radius);
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.sessions-count {
+    font-size: 11px;
+    color: var(--cp-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.sessions-filters {
+    display: flex;
+    gap: 8px;
     flex-wrap: wrap;
     align-items: center;
 }
 
-.filter-group {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-xs);
+.filter-input {
+    height: 26px;
+    padding: 0 8px;
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--vscode-input-foreground);
+    background: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border, var(--cp-border));
+    border-radius: 3px;
+    outline: none;
+    min-width: 140px;
 }
 
-.filter-group label {
-    font-size: 0.9em;
-    color: var(--vscode-descriptionForeground);
+.filter-input:focus {
+    border-color: var(--vscode-focusBorder);
+}
+
+.filter-input[type="search"] {
+    flex: 1;
+    min-width: 180px;
+}
+
+.sessions-table-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--cp-border);
+    border-radius: 4px;
+}
+
+.sessions-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.sessions-table thead {
+    position: sticky;
+    top: 0;
+    background: var(--cp-bg-elevated);
+    z-index: 1;
+}
+
+.sessions-table th {
+    text-align: left;
+    padding: 8px 10px;
+    font-weight: 500;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--cp-muted);
+    border-bottom: 1px solid var(--cp-border);
+    white-space: nowrap;
+    user-select: none;
+}
+
+.sessions-table th.num {
+    text-align: right;
+}
+
+.sessions-table th.sortable {
+    cursor: pointer;
+    transition: color 0.1s ease;
+}
+
+.sessions-table th.sortable:hover {
+    color: var(--cp-fg);
+}
+
+.sort-arrow {
+    display: inline-block;
+    margin-left: 3px;
+    opacity: 0.5;
+    font-size: 10px;
+}
+
+.sessions-table th.sort-asc .sort-arrow::after { content: '↑'; opacity: 1; }
+.sessions-table th.sort-desc .sort-arrow::after { content: '↓'; opacity: 1; }
+
+.sessions-table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--cp-border);
+    color: var(--cp-fg);
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.sessions-table tr:last-child td {
+    border-bottom: none;
+}
+
+.sessions-table tbody tr {
+    transition: background 0.08s ease;
+}
+
+.sessions-table tbody tr:hover {
+    background: var(--cp-hover);
+}
+
+.sessions-table td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-family: var(--vscode-editor-font-family, 'SF Mono', Menlo, monospace);
+    font-size: 11px;
+}
+
+.sessions-table td.muted {
+    color: var(--cp-muted);
+}
+
+.sessions-table td.file-cell {
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: var(--vscode-editor-font-family, 'SF Mono', Menlo, monospace);
+    font-size: 11px;
+}
+
+.lang-pill {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: color-mix(in srgb, var(--cp-accent) 15%, transparent);
+    color: var(--cp-accent);
     font-weight: 500;
 }
 
-.filter-group select,
-.filter-group input[type="date"] {
-    padding: var(--spacing-xs) var(--spacing-sm);
-    border: 1px solid var(--vscode-panel-border);
-    border-radius: var(--radius);
-    background: var(--vscode-input-background);
-    color: var(--vscode-foreground);
+.score-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: flex-end;
 }
 
-/* Empty State */
+.score-bar-track {
+    width: 40px;
+    height: 4px;
+    background: var(--cp-border);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.score-bar-fill {
+    height: 100%;
+    background: var(--cp-accent);
+    border-radius: 2px;
+}
+
+.score-bar-fill.high   { background: var(--cp-green); }
+.score-bar-fill.medium { background: var(--cp-yellow); }
+.score-bar-fill.low    { background: var(--cp-red); }
+
+.loading-cell {
+    text-align: center;
+    color: var(--cp-muted);
+    padding: 24px !important;
+}
+
+.sessions-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.pagination-info {
+    font-size: 11px;
+    color: var(--cp-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.sessions-pagination .btn {
+    flex: 0 0 auto;
+    min-width: 70px;
+}
+
+/* ---------- Empty States ---------- */
 .empty-state {
     text-align: center;
-    padding: var(--spacing-xl);
-    color: var(--vscode-descriptionForeground);
+    padding: 32px 16px;
+    color: var(--cp-muted);
 }
 
 .empty-state-icon {
-    font-size: 3em;
-    margin-bottom: var(--spacing-md);
+    font-size: 24px;
+    margin-bottom: 8px;
     opacity: 0.5;
 }
 
 .empty-state-title {
-    font-size: 1.2em;
-    margin-bottom: var(--spacing-sm);
-    color: var(--vscode-foreground);
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    color: var(--cp-fg);
 }
 
 .empty-state-description {
-    margin-bottom: var(--spacing-md);
+    font-size: 12px;
 }
 
-/* Tooltip */
-.tooltip {
-    position: absolute;
-    background: var(--vscode-sideBar-background);
-    border: 1px solid var(--vscode-panel-border);
-    border-radius: var(--radius);
-    padding: var(--spacing-sm);
-    font-size: 0.85em;
-    color: var(--vscode-foreground);
-    pointer-events: none;
-    z-index: 1000;
-    box-shadow: var(--shadow);
-    max-width: 200px;
+/* ---------- Buttons on dashboard ---------- */
+.dashboard-header .btn {
+    height: 28px;
+    padding: 0 14px;
+    font-size: 12px;
+    flex: 0 0 auto;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-    .dashboard-main {
-        padding: var(--spacing-md);
-    }
-    
-    .dashboard-grid {
-        grid-template-columns: 1fr;
-        gap: var(--spacing-md);
-    }
-    
+/* ---------- Responsive ---------- */
+@media (max-width: 1024px) {
     .current-session-card,
-    .stats-card,
-    .chart-card,
-    .activity-card {
-        grid-column: span 1;
-    }
-    
-    .header-content {
-        flex-direction: column;
-        text-align: center;
-    }
-    
-    .dashboard-title {
-        font-size: 1.5em;
-    }
-    
-    .session-timer {
-        font-size: 2.5em;
-    }
-    
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .filter-controls {
-        flex-direction: column;
-        align-items: stretch;
-    }
+    .stats-card { grid-column: span 12; }
+    .breakdown-card { grid-column: span 12; }
 }
 
-@media (max-width: 480px) {
-    .dashboard-main {
-        padding: var(--spacing-sm);
-    }
-    
-    .stats-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .session-timer {
-        font-size: 2em;
-    }
-    
-    .breakdown-content {
-        gap: var(--spacing-sm);
-    }
-    
-    .chart-container {
-        height: 250px;
-    }
+@media (max-width: 640px) {
+    .dashboard-header,
+    .dashboard-main { padding-left: 12px; padding-right: 12px; }
+    .session-timer { font-size: 28px; }
+    .stats-grid { grid-template-columns: 1fr; }
+    .dashboard-grid { gap: 10px; }
 }
 
-/* Print Styles */
-@media print {
-    .header-actions,
-    .btn {
-        display: none !important;
-    }
-    
-    .card {
-        break-inside: avoid;
-        box-shadow: none;
-        border: 1px solid #000;
-    }
-    
-    .dashboard-grid {
-        gap: var(--spacing-md);
-    }
-}
+/* ---------- Compact mode ---------- */
+body.compact-mode .dashboard-main { padding: 12px; }
+body.compact-mode .dashboard-grid { gap: 10px; }
+body.compact-mode .card { padding: 12px 14px; }
+body.compact-mode .session-timer { font-size: 28px; }
 
-/* Animation for data updates */
-.updating {
-    opacity: 0.6;
-    transition: opacity 0.3s ease;
+/* ---------- Scrollbar utility ---------- */
+.activity-list::-webkit-scrollbar { width: 10px; }
+.activity-list::-webkit-scrollbar-thumb {
+    background: var(--vscode-scrollbarSlider-background);
+    border-radius: 5px;
 }
-
-.updated {
-    animation: highlight 0.5s ease;
-}
-
-@keyframes highlight {
-    0% { background-color: var(--accent-color); opacity: 0.3; }
-    100% { background-color: transparent; opacity: 1; }
-}
-
-/* Focus management for accessibility */
-.card:focus-within {
-    outline: 2px solid var(--vscode-focusBorder);
-    outline-offset: 2px;
-}
-
-/* Loading skeleton */
-.skeleton {
-    background: linear-gradient(90deg, var(--vscode-panel-border) 25%, transparent 50%, var(--vscode-panel-border) 75%);
-    background-size: 200% 100%;
-    animation: loading 1.5s infinite;
-}
-
-@keyframes loading {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+.activity-list::-webkit-scrollbar-thumb:hover {
+    background: var(--vscode-scrollbarSlider-hoverBackground);
 }

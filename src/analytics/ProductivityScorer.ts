@@ -1,5 +1,6 @@
 import { DatabaseManager } from '../storage/DatabaseManager';
 import { CodingSession } from '../tracker/TimeTracker';
+import { formatLocalDate } from '../utils/DateUtils';
 
 export interface ProductivityFactors {
     keystrokeVelocity: number;
@@ -23,23 +24,23 @@ export class ProductivityScorer {
         ['assembly', 0.95],
         ['c', 0.85],
         ['cpp', 0.85],
-        ['rust', 0.80],
+        ['rust', 0.8],
         ['go', 0.75],
-        ['java', 0.70],
-        ['csharp', 0.70],
-        ['kotlin', 0.70],
+        ['java', 0.7],
+        ['csharp', 0.7],
+        ['kotlin', 0.7],
         ['scala', 0.75],
-        ['swift', 0.70],
+        ['swift', 0.7],
         ['typescript', 0.65],
-        ['javascript', 0.60],
+        ['javascript', 0.6],
         ['python', 0.55],
         ['ruby', 0.55],
-        ['php', 0.50],
-        ['html', 0.30],
+        ['php', 0.5],
+        ['html', 0.3],
         ['css', 0.35],
-        ['markdown', 0.20],
+        ['markdown', 0.2],
         ['json', 0.15],
-        ['yaml', 0.20],
+        ['yaml', 0.2],
         ['xml', 0.25]
     ]);
 
@@ -77,7 +78,7 @@ export class ProductivityScorer {
 
     public async calculateDailyProductivityScore(date: string): Promise<number> {
         const sessions = await this.databaseManager.getSessionsByDate(date);
-        
+
         if (sessions.length === 0) {
             return 0;
         }
@@ -86,13 +87,16 @@ export class ProductivityScorer {
         const weightedScore = sessions.reduce((sum, session) => {
             const sessionScore = session.productivityScore || 0;
             const weight = session.duration / totalTime;
-            return sum + (sessionScore * weight);
+            return sum + sessionScore * weight;
         }, 0);
 
         return Math.round(weightedScore);
     }
 
-    public async calculateWeeklyProductivityTrend(startDate: Date, endDate: Date): Promise<{
+    public async calculateWeeklyProductivityTrend(
+        startDate: Date,
+        endDate: Date
+    ): Promise<{
         dates: string[];
         scores: number[];
         trend: 'improving' | 'declining' | 'stable';
@@ -103,12 +107,12 @@ export class ProductivityScorer {
         const currentDate = new Date(startDate);
 
         while (currentDate <= endDate) {
-            const dateString = currentDate.toISOString().split('T')[0];
+            const dateString = formatLocalDate(currentDate);
             const score = await this.calculateDailyProductivityScore(dateString);
-            
+
             dates.push(dateString);
             scores.push(score);
-            
+
             currentDate.setDate(currentDate.getDate() + 1);
         }
 
@@ -122,7 +126,10 @@ export class ProductivityScorer {
         };
     }
 
-    public async getProductivityInsights(startDate: Date, endDate: Date): Promise<{
+    public async getProductivityInsights(
+        startDate: Date,
+        endDate: Date
+    ): Promise<{
         averageScore: number;
         bestDay: { date: string; score: number };
         worstDay: { date: string; score: number };
@@ -132,7 +139,7 @@ export class ProductivityScorer {
         insights: string[];
     }> {
         const sessions = await this.databaseManager.getSessionsByDateRange(startDate, endDate);
-        
+
         if (sessions.length === 0) {
             return {
                 averageScore: 0,
@@ -162,8 +169,8 @@ export class ProductivityScorer {
             score: scores.reduce((a, b) => a + b, 0) / scores.length
         }));
 
-        const bestDay = dailyAverages.reduce((max, day) => day.score > max.score ? day : max);
-        const worstDay = dailyAverages.reduce((min, day) => day.score < min.score ? day : min);
+        const bestDay = dailyAverages.reduce((max, day) => (day.score > max.score ? day : max));
+        const worstDay = dailyAverages.reduce((min, day) => (day.score < min.score ? day : min));
 
         // Language scores
         const languageScores = new Map<string, number[]>();
@@ -179,7 +186,7 @@ export class ProductivityScorer {
                 language,
                 score: scores.reduce((a, b) => a + b, 0) / scores.length
             }))
-            .reduce((max, lang) => lang.score > max.score ? lang : max);
+            .reduce((max, lang) => (lang.score > max.score ? lang : max));
 
         // Project scores
         const projectScores = new Map<string, number[]>();
@@ -195,7 +202,7 @@ export class ProductivityScorer {
                 project,
                 score: scores.reduce((a, b) => a + b, 0) / scores.length
             }))
-            .reduce((max, proj) => proj.score > max.score ? proj : max);
+            .reduce((max, proj) => (proj.score > max.score ? proj : max));
 
         // Peak hour
         const hourScores = new Map<number, number[]>();
@@ -212,7 +219,7 @@ export class ProductivityScorer {
                 hour,
                 score: scores.reduce((a, b) => a + b, 0) / scores.length
             }))
-            .reduce((max, h) => h.score > max.score ? h : max);
+            .reduce((max, h) => (h.score > max.score ? h : max));
 
         const insights = this.generatePeriodInsights(sessions, dailyAverages);
 
@@ -234,10 +241,10 @@ export class ProductivityScorer {
 
         const durationInMinutes = session.duration / (1000 * 60);
         const keystrokesPerMinute = session.keystrokes / durationInMinutes;
-        
+
         // Normalize to 0-100 scale (assuming optimal is around 300-400 keystrokes per minute)
-        const normalized = Math.min(keystrokesPerMinute / 350 * 100, 100);
-        
+        const normalized = Math.min((keystrokesPerMinute / 350) * 100, 100);
+
         return Math.round(normalized);
     }
 
@@ -249,24 +256,24 @@ export class ProductivityScorer {
         // Calculate focus based on heartbeat consistency
         const expectedHeartbeats = Math.floor(session.duration / (2 * 60 * 1000)); // Every 2 minutes
         const heartbeatRatio = Math.min(session.heartbeats / Math.max(expectedHeartbeats, 1), 1);
-        
+
         return Math.round(heartbeatRatio * 100);
     }
 
     private calculateCodeChurn(session: CodingSession): number {
         const totalLines = session.linesAdded + session.linesRemoved;
-        
+
         if (totalLines === 0) {
             return 50; // Neutral score for sessions with no line changes
         }
 
         // Calculate churn ratio (removed / added)
         const churnRatio = session.linesRemoved / Math.max(session.linesAdded, 1);
-        
+
         // Lower churn ratio is better (more additions than deletions)
         // Score inversely related to churn ratio
-        const score = Math.max(0, 100 - (churnRatio * 50));
-        
+        const score = Math.max(0, 100 - churnRatio * 50);
+
         return Math.round(score);
     }
 
@@ -274,10 +281,10 @@ export class ProductivityScorer {
         // Get recent sessions for the same project and language
         const recentDate = new Date(session.startTime);
         recentDate.setDate(recentDate.getDate() - 7);
-        
+
         const recentSessions = await this.databaseManager.getSessionsByDateRange(recentDate, session.startTime);
-        const similarSessions = recentSessions.filter(s => 
-            s.project === session.project && s.language === session.language && s.id !== session.id
+        const similarSessions = recentSessions.filter(
+            s => s.project === session.project && s.language === session.language && s.id !== session.id
         );
 
         if (similarSessions.length === 0) {
@@ -286,16 +293,16 @@ export class ProductivityScorer {
 
         const avgDuration = similarSessions.reduce((sum, s) => sum + s.duration, 0) / similarSessions.length;
         const durationDiff = Math.abs(session.duration - avgDuration) / avgDuration;
-        
+
         // Lower difference means higher consistency
-        const consistency = Math.max(0, 100 - (durationDiff * 100));
-        
+        const consistency = Math.max(0, 100 - durationDiff * 100);
+
         return Math.round(consistency);
     }
 
     private calculateLanguageComplexity(session: CodingSession): number {
         const complexity = this.languageComplexityMap.get(session.language.toLowerCase()) || 0.5;
-        
+
         // Higher complexity languages get higher scores for the same amount of work
         return Math.round(complexity * 100);
     }
@@ -303,30 +310,30 @@ export class ProductivityScorer {
     private async calculateProjectFamiliarity(session: CodingSession): Promise<number> {
         const thirtyDaysAgo = new Date(session.startTime);
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        
+
         const projectSessions = await this.databaseManager.getSessionsByDateRange(thirtyDaysAgo, session.startTime);
         const sameProjectSessions = projectSessions.filter(s => s.project === session.project && s.id !== session.id);
-        
+
         // More sessions in the same project indicates higher familiarity
-        const familiarityScore = Math.min(sameProjectSessions.length / 10 * 100, 100);
-        
+        const familiarityScore = Math.min((sameProjectSessions.length / 10) * 100, 100);
+
         return Math.round(familiarityScore);
     }
 
     private calculateTimeOfDayScore(session: CodingSession): number {
         const hour = session.startTime.getHours();
-        
+
         if (this.peakProductivityHours.includes(hour)) {
             return 100;
         }
-        
+
         // Calculate distance from nearest peak hour
         const distances = this.peakProductivityHours.map(peakHour => Math.abs(hour - peakHour));
         const minDistance = Math.min(...distances);
-        
+
         // Score decreases with distance from peak hours
-        const score = Math.max(0, 100 - (minDistance * 10));
-        
+        const score = Math.max(0, 100 - minDistance * 10);
+
         return Math.round(score);
     }
 
@@ -342,7 +349,7 @@ export class ProductivityScorer {
             timeOfDay: 0.05
         };
 
-        const weightedScore = 
+        const weightedScore =
             factors.keystrokeVelocity * weights.keystrokeVelocity +
             factors.focusTime * weights.focusTime +
             factors.codeChurn * weights.codeChurn +
@@ -407,11 +414,13 @@ export class ProductivityScorer {
             recommendations.push('Consider scheduling important coding work during your peak hours (9-11 AM, 2-4 PM).');
         }
 
-        if (session.duration < 30 * 60 * 1000) { // Less than 30 minutes
+        if (session.duration < 30 * 60 * 1000) {
+            // Less than 30 minutes
             recommendations.push('Longer focused sessions often lead to higher productivity.');
         }
 
-        if (session.duration > 3 * 60 * 60 * 1000) { // More than 3 hours
+        if (session.duration > 3 * 60 * 60 * 1000) {
+            // More than 3 hours
             recommendations.push('Take regular breaks to maintain focus and prevent burnout.');
         }
 
@@ -427,14 +436,14 @@ export class ProductivityScorer {
         const n = scores.length;
         const sumX = (n * (n - 1)) / 2; // Sum of indices
         const sumY = scores.reduce((a, b) => a + b, 0);
-        const sumXY = scores.reduce((sum, score, index) => sum + (score * index), 0);
-        const sumX2 = scores.reduce((sum, _, index) => sum + (index * index), 0);
+        const sumXY = scores.reduce((sum, score, index) => sum + score * index, 0);
+        const sumX2 = scores.reduce((sum, _, index) => sum + index * index, 0);
 
         const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-        
+
         // Determine trend direction and strength
         const strength = Math.abs(slope);
-        
+
         if (Math.abs(slope) < 0.5) {
             return { trend: 'stable', strength };
         } else if (slope > 0) {
@@ -475,7 +484,7 @@ export class ProductivityScorer {
         if (weekdayScores.length > 0 && weekendScores.length > 0) {
             const weekdayAvg = weekdayScores.reduce((a, b) => a + b, 0) / weekdayScores.length;
             const weekendAvg = weekendScores.reduce((a, b) => a + b, 0) / weekendScores.length;
-            
+
             if (weekendAvg > weekdayAvg + 10) {
                 insights.push('You tend to be more productive on weekends.');
             } else if (weekdayAvg > weekendAvg + 10) {

@@ -25,7 +25,7 @@ export class Logger {
             ? logDirectoryPath
             : path.join(logDirectoryPath, 'codepulse.log');
         this.logLevel = logLevel;
-        
+
         this.ensureLogDirectory();
         this.startBufferFlushing();
     }
@@ -54,7 +54,7 @@ export class Logger {
         return this.logLevel;
     }
 
-    public async getLogs(lines: number = 100): Promise<string[]> {
+    public async getLogs(lines = 100): Promise<string[]> {
         try {
             if (!fs.existsSync(this.logFilePath)) {
                 return [];
@@ -62,7 +62,7 @@ export class Logger {
 
             const data = await fs.promises.readFile(this.logFilePath, 'utf8');
             const logLines = data.split('\n').filter(line => line.trim() !== '');
-            
+
             return logLines.slice(-lines);
         } catch (error) {
             console.error('Failed to read log file:', error);
@@ -128,14 +128,14 @@ export class Logger {
         const levels = ['debug', 'info', 'warn', 'error'];
         const currentLevelIndex = levels.indexOf(this.logLevel);
         const messageLevelIndex = levels.indexOf(level);
-        
+
         return messageLevelIndex >= currentLevelIndex;
     }
 
     private logToConsole(entry: LogEntry): void {
         const timestamp = entry.timestamp.toISOString();
         const message = `[${timestamp}] [${entry.level.toUpperCase()}] ${entry.message}`;
-        
+
         switch (entry.level) {
             case 'debug':
                 console.debug(message, entry.metadata);
@@ -160,7 +160,7 @@ export class Logger {
 
     private ensureLogDirectory(): void {
         const logDir = path.dirname(this.logFilePath);
-        
+
         if (!fs.existsSync(logDir)) {
             try {
                 fs.mkdirSync(logDir, { recursive: true });
@@ -208,7 +208,7 @@ export class Logger {
 
             // Append to log file
             fs.appendFileSync(this.logFilePath, logData, 'utf8');
-            
+
         } catch (error) {
             console.error('Failed to write to log file:', error);
             throw error;
@@ -272,7 +272,7 @@ export class Logger {
     // Static utility methods
     public static createLogger(extensionPath: string, component?: string, logLevel: LogLevel = 'info'): Logger {
         const logger = new Logger(extensionPath, logLevel);
-        
+
         // Add component prefix to messages
         if (component) {
             const originalLog = logger.log;
@@ -281,7 +281,7 @@ export class Logger {
                 return originalLog.call(this, level, prefixedMessage, error, metadata);
             };
         }
-        
+
         return logger;
     }
 
@@ -303,7 +303,7 @@ export class Logger {
 
             const data = await fs.promises.readFile(logFilePath, 'utf8');
             const lines = data.split('\n').filter(line => line.trim() !== '');
-            
+
             const entriesByLevel: { [key in LogLevel]: number } = { debug: 0, info: 0, warn: 0, error: 0 };
             const errors: string[] = [];
             const errorCounts = new Map<string, number>();
@@ -314,10 +314,10 @@ export class Logger {
                 if (levelMatch) {
                     const level = levelMatch[1].toLowerCase() as LogLevel;
                     entriesByLevel[level]++;
-                    
+
                     if (level === 'error') {
                         errors.push(line);
-                        
+
                         // Extract error message for counting
                         const messageMatch = line.match(/\] (.+?)(?:\s\||\n|$)/);
                         if (messageMatch) {

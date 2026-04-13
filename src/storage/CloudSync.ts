@@ -26,7 +26,7 @@ export class CloudSync {
     private syncTimer: NodeJS.Timeout | null = null;
     private pendingSessions: CodingSession[] = [];
     private pendingActivities: ActivityEvent[] = [];
-    private isEnabled: boolean = false;
+    private isEnabled = false;
     private connectionStatus: 'connected' | 'disconnected' | 'error' = 'disconnected';
     private lastSyncTime: Date | null = null;
     private config: CloudSyncConfig;
@@ -37,7 +37,7 @@ export class CloudSync {
     ) {
         this.config = this.loadConfig();
         this.isEnabled = this.configManager.get('cloudSync.enabled', false);
-        
+
         this.client = axios.create({
             baseURL: this.config.apiUrl,
             timeout: this.config.timeout,
@@ -63,16 +63,16 @@ export class CloudSync {
 
         try {
             this.logger.info('Initializing cloud sync...');
-            
+
             // Test connection
             await this.testConnection();
             this.connectionStatus = 'connected';
-            
+
             // Start periodic sync
             this.startPeriodicSync();
-            
+
             this.logger.info('Cloud sync initialized successfully');
-            
+
         } catch (error) {
             const logError = error instanceof Error ? error : new Error(String(error));
             this.logger.error('Failed to initialize cloud sync', logError);
@@ -90,7 +90,7 @@ export class CloudSync {
         try {
             await this.uploadSession(session);
             this.logger.debug(`Session synced: ${session.id}`);
-            
+
         } catch (error) {
             this.logger.warn(`Failed to sync session, adding to pending: ${error}`);
             this.pendingSessions.push(session);
@@ -106,7 +106,7 @@ export class CloudSync {
         try {
             await this.uploadActivity(activity);
             this.logger.debug(`Activity synced: ${activity.type}`);
-            
+
         } catch (error) {
             this.logger.warn(`Failed to sync activity, adding to pending: ${error}`);
             this.pendingActivities.push(activity);
@@ -218,7 +218,7 @@ export class CloudSync {
         try {
             const response = await this.client.get('/health');
             return response.status === 200;
-            
+
         } catch (error) {
             const logError = error instanceof Error ? error : new Error(String(error));
             this.logger.error('Cloud sync connection test failed', logError);
@@ -263,7 +263,7 @@ export class CloudSync {
             clearInterval(this.syncTimer);
             this.syncTimer = null;
         }
-        
+
         this.connectionStatus = 'disconnected';
         this.logger.info('Cloud sync stopped');
     }
