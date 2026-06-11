@@ -245,7 +245,7 @@ suite('ApiServer Test Suite', () => {
     });
 
     test('Registers the copyApiToken command', async () => {
-        const extension = vscode.extensions.getExtension('codepulse.codepulse');
+        const extension = vscode.extensions.getExtension('umutkorkmaz.codepulse');
         assert.ok(extension);
         if (!extension.isActive) {
             await extension.activate();
