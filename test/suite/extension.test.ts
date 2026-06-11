@@ -10,11 +10,11 @@ suite('Extension Test Suite', () => {
     });
 
     test('Extension should be present', () => {
-        assert.ok(vscode.extensions.getExtension('umutkorkmaz.code-pulse'));
+        assert.ok(vscode.extensions.getExtension('umutkorkmaz.code-pulse-tracker'));
     });
 
     test('Extension should activate', async () => {
-        const extension = vscode.extensions.getExtension('umutkorkmaz.code-pulse');
+        const extension = vscode.extensions.getExtension('umutkorkmaz.code-pulse-tracker');
         assert.ok(extension);
 
         if (!extension.isActive) {
@@ -68,7 +68,7 @@ suite('Extension Test Suite', () => {
     });
 
     test('Status bar item should be available', async () => {
-        const extension = vscode.extensions.getExtension('umutkorkmaz.code-pulse');
+        const extension = vscode.extensions.getExtension('umutkorkmaz.code-pulse-tracker');
         assert.ok(extension);
 
         if (!extension.isActive) {
@@ -81,7 +81,7 @@ suite('Extension Test Suite', () => {
     });
 
     test('Webview provider should be registered', async () => {
-        const extension = vscode.extensions.getExtension('umutkorkmaz.code-pulse');
+        const extension = vscode.extensions.getExtension('umutkorkmaz.code-pulse-tracker');
         assert.ok(extension);
 
         if (!extension.isActive) {
