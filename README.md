@@ -103,15 +103,45 @@ CodePulse is a comprehensive VS Code extension that automatically tracks your co
 }
 ```
 
+### Goal Tracking Settings
+
+Code Pulse supports global and per-project goals for both daily and weekly windows.
+
+```json
+{
+    "codepulse.goals.enabled": true,
+    "codepulse.goals.dailyMinutes": 240,
+    "codepulse.goals.weeklyMinutes": 1200,
+    "codepulse.goals.milestoneNotifications": true,
+    "codepulse.goals.projectGoals": {
+      "my-workspace": {
+        "dailyMinutes": 180,
+        "weeklyMinutes": 900
+      },
+      "my-open-source-project": {
+        "dailyMinutes": 120
+      }
+    }
+}
+```
+
+Open the dashboard via `Code Pulse: Show Dashboard` or `Code Pulse: Show Goals` to view:
+- Global daily/weekly percentage
+- Remaining time
+- ETA when pacing is sufficient
+
+Per-project goals apply when the tracker is currently on that project and can be set independently of global goals.
+
 ### Cloud Sync (Optional)
 
 ```json
 {
     "codepulse.cloudSync.enabled": false,
     "codepulse.cloudSync.apiUrl": "https://your-api.com",
-    "codepulse.cloudSync.apiKey": "your-api-key"
+    "codepulse.cloudSync.apiKey": "..."
 }
 ```
+Use VS Code's secure secret settings UI for API keys and access tokens rather than committing values in plain text.
 
 ### Local API Server
 
@@ -119,7 +149,8 @@ CodePulse is a comprehensive VS Code extension that automatically tracks your co
 {
     "codepulse.localServer.enabled": false,
     "codepulse.localServer.port": 8080,
-    "codepulse.localServer.allowExternalConnections": false
+    "codepulse.localServer.allowExternalConnections": false,
+    "codepulse.localServer.apiToken": "set via secret setting"
 }
 ```
 
@@ -139,17 +170,27 @@ CodePulse includes a local REST API server for building custom integrations.
 - `GET /sessions?start=DATE&end=DATE` - Session data
 - `GET /export` - Export all data
 
+### Authentication
+
+Every request — including on localhost — requires a bearer token; the API never
+serves your coding-activity data unauthenticated. The token is the
+`codepulse.localServer.apiToken` setting if set, otherwise a random token is
+generated once and persisted (mode `0600`) under the extension's global storage.
+Run the **Code Pulse: Copy Local API Token** command to copy the active token to
+your clipboard. Requests with a non-loopback `Host` header are rejected (`403`)
+as a DNS-rebinding defense.
+
 ### Example Usage
 
 ```bash
-# Get current session
-curl http://localhost:8080/current
+# Get current session (token via Authorization header)
+curl -H "Authorization: Bearer <your local API token>" http://localhost:8080/current
 
 # Get today's stats
-curl http://localhost:8080/today
+curl -H "Authorization: Bearer <your local API token>" http://localhost:8080/today
 
-# Get last 30 days project stats
-curl http://localhost:8080/projects?days=30
+# Token may also be passed as a query parameter
+curl "http://localhost:8080/projects?days=30&token=<your local API token>"
 ```
 
 ## 🎨 Customization

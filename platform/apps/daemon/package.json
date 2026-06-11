@@ -1,0 +1,32 @@
+{
+  "name": "@codepulse/daemon",
+  "version": "0.1.0",
+  "description": "Code Pulse device daemon (codepulse-d)",
+  "private": true,
+  "main": "./dist/main.js",
+  "bin": {
+    "codepulse-d": "./bin/codepulse-d"
+  },
+  "scripts": {
+    "build": "npm run build:deps && tsc -p tsconfig.json",
+    "build:deps": "npm run build --prefix ../../packages/protocol && npm run build --prefix ../../packages/core && npm run build --prefix ../../packages/registry",
+    "clean": "rm -rf dist",
+    "start": "node dist/main.js",
+    "dev": "npm run build && node dist/main.js"
+  },
+  "dependencies": {
+    "@codepulse/core": "file:../../packages/core",
+    "@codepulse/protocol": "file:../../packages/protocol",
+    "@codepulse/registry": "file:../../packages/registry",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/ws": "^8.5.12",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

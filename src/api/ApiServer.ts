@@ -1,4 +1,7 @@
 import * as http from 'http';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as crypto from 'crypto';
 import { TimeTracker } from '../tracker/TimeTracker';
 import { DatabaseManager } from '../storage/DatabaseManager';
 import { ConfigManager } from '../utils/ConfigManager';
@@ -8,6 +11,79 @@ export interface ApiResponse {
     data?: any;
     error?: string;
     timestamp: string;
+}
+
+/**
+ * Loopback host names/addresses accepted in the Host header. Anything else is a
+ * DNS-rebinding attempt (a public DNS name resolving to 127.0.0.1) and is
+ * rejected before routing. An optional port suffix is allowed. Mirrors the
+ * daemon's ALLOWED_HOST_PATTERNS in platform/apps/daemon/src/http/cors.ts.
+ */
+const ALLOWED_HOST_PATTERNS = [
+    /^127\.0\.0\.1(?::\d+)?$/,
+    /^localhost(?::\d+)?$/,
+    /^\[::1\](?::\d+)?$/
+];
+
+/**
+ * Returns true when the request's Host header is a loopback host. Requests with
+ * a missing Host header are rejected (an HTTP/1.1 request must send one).
+ */
+function isLoopbackHost(req: http.IncomingMessage): boolean {
+    const host = req.headers.host;
+    if (!host || typeof host !== 'string') {
+        return false;
+    }
+    return ALLOWED_HOST_PATTERNS.some(pattern => pattern.test(host));
+}
+
+/** Length-checked, constant-time string comparison for bearer tokens. */
+function timingSafeEqualString(a: string, b: string): boolean {
+    const bufferA = Buffer.from(a, 'utf8');
+    const bufferB = Buffer.from(b, 'utf8');
+    if (bufferA.length !== bufferB.length) {
+        return false;
+    }
+    return crypto.timingSafeEqual(bufferA, bufferB);
+}
+
+/**
+ * Resolves the API token for the local server. Prefers the configured
+ * `localServer.apiToken` setting when non-empty; otherwise reads (or generates
+ * once and persists) a random token at `<storagePath>/api-token` with mode
+ * 0600. Mirrors the daemon's `~/.codepulse/token` pattern in
+ * platform/apps/daemon/src/config.ts (ensureAuthToken).
+ */
+export function resolveApiToken(configManager: ConfigManager, storagePath?: string): string {
+    const configured = configManager.get<string>('localServer.apiToken', '').trim();
+    if (configured) {
+        return configured;
+    }
+
+    if (!storagePath) {
+        // No persistence location available: generate an ephemeral token so auth
+        // still fails closed (every request needs a token the caller cannot know).
+        return crypto.randomUUID();
+    }
+
+    const tokenPath = path.join(storagePath, 'api-token');
+    try {
+        const existing = fs.readFileSync(tokenPath, 'utf8').trim();
+        if (existing) {
+            return existing;
+        }
+    } catch {
+        // File does not exist yet (or is unreadable); fall through to generate one.
+    }
+
+    const token = crypto.randomUUID();
+    try {
+        fs.mkdirSync(storagePath, { recursive: true });
+        fs.writeFileSync(tokenPath, `${token}\n`, { mode: 0o600 });
+    } catch (error) {
+        console.error('Failed to persist generated API token:', error);
+    }
+    return token;
 }
 
 export interface ApiStats {
@@ -30,7 +106,8 @@ export class ApiServer {
     constructor(
         private timeTracker: TimeTracker,
         private databaseManager: DatabaseManager,
-        private configManager: ConfigManager
+        private configManager: ConfigManager,
+        private storagePath?: string
     ) {
         this.port = this.configManager.get('localServer.port', 8080);
         this.allowExternalConnections = this.configManager.get('localServer.allowExternalConnections', false);
@@ -108,6 +185,15 @@ export class ApiServer {
         return this.port;
     }
 
+    /**
+     * Returns the active API token (configured setting if set, otherwise the
+     * persisted auto-generated one). Used by the copy-token command so external
+     * consumers can discover the token regardless of server run state.
+     */
+    public getActiveToken(): string {
+        return resolveApiToken(this.configManager, this.storagePath);
+    }
+
     public updateConfiguration(): void {
         const newPort = this.configManager.get('localServer.port', 8080);
         const newAllowExternal = this.configManager.get('localServer.allowExternalConnections', false);
@@ -129,6 +215,8 @@ export class ApiServer {
 
     private async handleRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
         const startTime = Date.now();
+        let pathname = '';
+        let query: Record<string, string> = {};
 
         try {
             // Enable CORS
@@ -136,6 +224,19 @@ export class ApiServer {
             res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
             res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
             res.setHeader('Content-Type', 'application/json');
+
+            // DNS-rebinding defense: reject any request whose Host header is not a
+            // loopback name/address. Applies to EVERY route, before auth/routing.
+            if (!isLoopbackHost(req)) {
+                const errorResponse: ApiResponse = {
+                    success: false,
+                    error: 'Forbidden host',
+                    timestamp: new Date().toISOString()
+                };
+                res.writeHead(403);
+                res.end(JSON.stringify(errorResponse));
+                return;
+            }
 
             // Handle preflight requests
             if (req.method === 'OPTIONS') {
@@ -145,11 +246,27 @@ export class ApiServer {
             }
 
             const parsedUrl = new URL(req.url || '', `http://localhost:${this.port}`);
-            const pathname = parsedUrl.pathname || '';
-            const query: Record<string, string> = {};
+            pathname = parsedUrl.pathname || '';
             parsedUrl.searchParams.forEach((value, key) => {
                 query[key] = value;
             });
+
+            // Auth is required on EVERY bind (localhost included). The full
+            // coding-activity DB is served here, so an unauthenticated local
+            // process (or a web page via localhost fetch) must never read it.
+            const expectedToken = resolveApiToken(this.configManager, this.storagePath);
+            const providedToken = this.getBearerToken(req, query);
+            if (!expectedToken || !providedToken || !timingSafeEqualString(providedToken, expectedToken)) {
+                const errorResponse: ApiResponse = {
+                    success: false,
+                    error: 'Unauthorized: missing or invalid local API token',
+                    timestamp: new Date().toISOString()
+                };
+                res.setHeader('WWW-Authenticate', 'Bearer');
+                res.writeHead(401);
+                res.end(JSON.stringify(errorResponse));
+                return;
+            }
 
             // Update stats
             this.stats.requestsTotal++;
@@ -185,6 +302,21 @@ export class ApiServer {
         }
 
         this.stats.averageResponseTime = this.requestTimes.reduce((a, b) => a + b, 0) / this.requestTimes.length;
+    }
+
+    private getBearerToken(
+        req: http.IncomingMessage,
+        query: Record<string, string>
+    ): string | undefined {
+        const authHeader = req.headers.authorization;
+        if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.substring(7).trim();
+            if (token) {
+                return token;
+            }
+        }
+
+        return query.token;
     }
 
     private async routeRequest(

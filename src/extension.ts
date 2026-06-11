@@ -6,8 +6,11 @@ import { WebviewProvider } from './ui/WebviewProvider';
 import { DatabaseManager } from './storage/DatabaseManager';
 import { ConfigManager } from './utils/ConfigManager';
 import { Logger } from './utils/Logger';
-import { ApiServer } from './api/ApiServer';
+import { ApiServer, resolveApiToken } from './api/ApiServer';
+import { DaemonClient } from './client/DaemonClient';
 import { SyncManager } from './storage/sync/SyncManager';
+import { TerminalAiDetector } from './detectors/TerminalAiDetector';
+import { AiExtensionDetector } from './detectors/AiExtensionDetector';
 
 let timeTracker: TimeTracker;
 let statusBarManager: StatusBarManager;
@@ -16,7 +19,23 @@ let databaseManager: DatabaseManager;
 let configManager: ConfigManager;
 let logger: Logger;
 let apiServer: ApiServer | undefined;
+let daemonClient: DaemonClient | undefined;
+let terminalAiDetector: TerminalAiDetector | undefined;
+let aiExtensionDetector: AiExtensionDetector | undefined;
 let syncManager: SyncManager;
+let apiTokenStoragePath: string;
+
+function formatDurationMs(durationMs: number): string {
+    const totalMinutes = Math.max(0, Math.round(durationMs / 60000));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+    }
+
+    return `${minutes}m`;
+}
 
 export async function activate(context: vscode.ExtensionContext) {
     console.log('CodePulse extension is now activating...');
@@ -25,6 +44,7 @@ export async function activate(context: vscode.ExtensionContext) {
         // Initialize core components
         const databaseStoragePath =
             context.globalStorageUri?.fsPath || context.globalStoragePath || context.extensionPath;
+        apiTokenStoragePath = databaseStoragePath;
         const logStoragePath = context.logUri?.fsPath || context.logPath || path.join(databaseStoragePath, 'logs');
 
         logger = new Logger(logStoragePath);
@@ -56,6 +76,30 @@ export async function activate(context: vscode.ExtensionContext) {
                 await timeTracker.showTodaysStats();
             }),
 
+            vscode.commands.registerCommand('codepulse.toggleFocusSession', async () => {
+                try {
+                    const report = await timeTracker.toggleFocusSession();
+                    await webviewProvider.refresh();
+                    statusBarManager.updateStatusBar();
+
+                    if (!configManager.shouldShowNotifications()) {
+                        return;
+                    }
+
+                    if (report) {
+                        const summary =
+                            `Focus session completed: ${formatDurationMs(report.focusActiveMs)} focused, ` +
+                            `${report.distractionCount} distractions.`;
+                        void vscode.window.showInformationMessage(summary);
+                    } else {
+                        void vscode.window.showInformationMessage('Focus session started.');
+                    }
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : String(error);
+                    void vscode.window.showErrorMessage(`Code Pulse: ${message}`);
+                }
+            }),
+
             vscode.commands.registerCommand('codepulse.exportData', async () => {
                 await timeTracker.exportData();
             }),
@@ -84,6 +128,17 @@ export async function activate(context: vscode.ExtensionContext) {
                 if (result === 'Reset All Data') {
                     await databaseManager.resetAllData();
                     vscode.window.showInformationMessage('All CodePulse data has been reset.');
+                }
+            }),
+
+            vscode.commands.registerCommand('codepulse.copyApiToken', async () => {
+                try {
+                    const token = resolveApiToken(configManager, databaseStoragePath);
+                    await vscode.env.clipboard.writeText(token);
+                    vscode.window.showInformationMessage('Code Pulse API token copied to clipboard.');
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : String(error);
+                    vscode.window.showErrorMessage(`Code Pulse: Failed to copy API token — ${message}`);
                 }
             })
         ];
@@ -148,12 +203,20 @@ export async function activate(context: vscode.ExtensionContext) {
     async function synchronizeRuntimeConfiguration(): Promise<void> {
         await vscode.commands.executeCommand('setContext', 'codepulse.enabled', configManager.isEnabled());
 
+        try {
+            await synchronizeDaemonClient();
+        } catch (error) {
+            // Daemon connectivity must never block applying the remaining configuration.
+            const logError = error instanceof Error ? error : new Error(String(error));
+            logger.warn('Failed to synchronize daemon client, continuing configuration update', logError);
+        }
+
         await timeTracker.refreshConfiguration();
         statusBarManager.refreshConfiguration();
 
         if (configManager.isLocalServerEnabled()) {
             if (!apiServer) {
-                apiServer = new ApiServer(timeTracker, databaseManager, configManager);
+                apiServer = new ApiServer(timeTracker, databaseManager, configManager, apiTokenStoragePath);
             }
             if (apiServer.isServerRunning()) {
                 apiServer.updateConfiguration();
@@ -172,6 +235,80 @@ export async function activate(context: vscode.ExtensionContext) {
 
         await webviewProvider.refresh();
         statusBarManager.updateStatusBar();
+    }
+
+    async function synchronizeDaemonClient(): Promise<void> {
+        if (!configManager.isDaemonEnabled()) {
+            disposeAiDetectors();
+            webviewProvider.setAiSources(undefined);
+
+            if (daemonClient) {
+                timeTracker.setSessionEndedHandler(undefined);
+                await daemonClient.disconnect();
+                daemonClient = undefined;
+            }
+
+            await vscode.commands.executeCommand('setContext', 'codepulse.daemon.connected', false);
+            return;
+        }
+
+        if (!daemonClient) {
+            daemonClient = new DaemonClient(configManager, logger);
+            // When the reconnect probe finds the daemon again, re-run the full wiring so
+            // event forwarding and the codepulse.daemon.connected context resume.
+            daemonClient.setReconnectedHandler(() => synchronizeDaemonClient());
+            context.subscriptions.push({
+                dispose: () => {
+                    void daemonClient?.disconnect();
+                }
+            });
+        }
+
+        await daemonClient.refreshConnection();
+        await vscode.commands.executeCommand(
+            'setContext',
+            'codepulse.daemon.connected',
+            daemonClient.isDaemonMode()
+        );
+
+        if (daemonClient.isDaemonMode()) {
+            daemonClient.startForwarding(() => timeTracker.getCurrentSession());
+            timeTracker.setSessionEndedHandler(session => daemonClient?.notifySessionEnded(session));
+        } else {
+            daemonClient.stopForwarding();
+            timeTracker.setSessionEndedHandler(undefined);
+        }
+
+        // AI detectors run whenever daemon integration is enabled — their local
+        // state keeps the dashboard's AI Tools card alive even while the daemon
+        // is unreachable (forwarding self-gates on daemon mode per detection).
+        if (!terminalAiDetector) {
+            terminalAiDetector = new TerminalAiDetector(daemonClient, logger);
+            terminalAiDetector.start();
+        }
+
+        if (!aiExtensionDetector) {
+            aiExtensionDetector = new AiExtensionDetector(daemonClient, logger);
+            aiExtensionDetector.start();
+        }
+
+        webviewProvider.setAiSources({
+            daemonClient,
+            terminalDetector: terminalAiDetector,
+            extensionDetector: aiExtensionDetector
+        });
+    }
+}
+
+function disposeAiDetectors(): void {
+    if (terminalAiDetector) {
+        terminalAiDetector.dispose();
+        terminalAiDetector = undefined;
+    }
+
+    if (aiExtensionDetector) {
+        aiExtensionDetector.dispose();
+        aiExtensionDetector = undefined;
     }
 }
 
@@ -197,6 +334,12 @@ export async function deactivate() {
         // Stop API server
         if (apiServer) {
             await apiServer.stop();
+        }
+
+        disposeAiDetectors();
+
+        if (daemonClient) {
+            await daemonClient.disconnect();
         }
 
         // Clean up status bar

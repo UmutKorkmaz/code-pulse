@@ -3,7 +3,7 @@ import Mocha = require('mocha');
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const globModule = require('glob') as {
-    glob: (pattern: string, options: { cwd: string }) => Promise<string[]>;
+    sync: (pattern: string, options: { cwd: string }) => string[];
 };
 
 export function run(): Promise<void> {
@@ -18,29 +18,21 @@ export function run(): Promise<void> {
     const testsRoot = path.resolve(__dirname, '..');
 
     return new Promise((c, e) => {
-        globModule
-            .glob('**/**.test.js', { cwd: testsRoot })
-            .then(files => {
-                // Add files to the test suite
-                files.forEach((file: string) => mocha.addFile(path.resolve(testsRoot, file)));
+        try {
+            const files = globModule.sync('**/**.test.js', { cwd: testsRoot });
 
-                try {
-                    // Run the mocha test
-                    mocha.run((failures: number) => {
-                        if (failures > 0) {
-                            e(new Error(`${failures} tests failed.`));
-                        } else {
-                            c();
-                        }
-                    });
-                } catch (err: unknown) {
-                    console.error(err);
-                    e(err);
+            files.forEach((file: string) => mocha.addFile(path.resolve(testsRoot, file)));
+
+            mocha.run((failures: number) => {
+                if (failures > 0) {
+                    e(new Error(`${failures} tests failed.`));
+                } else {
+                    c();
                 }
-            })
-            .catch((err: unknown) => {
-                console.error('Error finding test files:', err);
-                e(err);
             });
+        } catch (err: unknown) {
+            console.error('Error finding or running test files:', err);
+            e(err);
+        }
     });
 }

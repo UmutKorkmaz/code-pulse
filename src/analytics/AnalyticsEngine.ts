@@ -342,37 +342,35 @@ export class AnalyticsEngine {
         let longestStreak = 0;
         let currentStreakStart: Date | undefined;
         let longestStreakEnd: Date | undefined;
-        let tempStreakStart: Date | undefined;
 
-        // Check backwards from current date
+        // One query for every local date with active coding time in the scan
+        // window (367 days covers the 365-day walk below with margin), instead
+        // of one getSessionsByDate query per day.
+        const since = new Date(Date.now() - 367 * 24 * 60 * 60 * 1000);
+        const codingDates = new Set(await this.databaseManager.getDistinctCodingDates(since));
+
+        // Walk backwards from the current date, skipping non-coding days until
+        // the most recent streak is found, then count it until the first gap.
         const date = new Date(currentDate);
         date.setHours(23, 59, 59, 999); // End of day
 
         for (;;) {
             const dateString = formatLocalDate(date);
-            const sessions = await this.databaseManager.getSessionsByDate(dateString);
-            const hasCoding = sessions.length > 0 && sessions.some(s => s.duration > 0);
+            const hasCoding = codingDates.has(dateString);
 
             if (hasCoding) {
                 currentStreak++;
                 if (!currentStreakStart) {
                     currentStreakStart = new Date(date);
                 }
-                if (!tempStreakStart) {
-                    tempStreakStart = new Date(date);
-                }
 
                 if (currentStreak > longestStreak) {
                     longestStreak = currentStreak;
                     longestStreakEnd = new Date(date);
                 }
-            } else {
-                if (currentStreak > 0) {
-                    // End of current streak
-                    break;
-                }
-                currentStreak = 0;
-                tempStreakStart = undefined;
+            } else if (currentStreak > 0) {
+                // End of current streak
+                break;
             }
 
             date.setDate(date.getDate() - 1);

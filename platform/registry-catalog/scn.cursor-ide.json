@@ -1,0 +1,45 @@
+{
+  "$schema": "https://registry.codepulse.dev/v1/scanner.schema.json",
+  "id": "scn.cursor-ide",
+  "version": "1.0.0",
+  "displayName": "Cursor",
+  "publisher": "code-pulse-official",
+  "trust": "official",
+  "enabled": true,
+  "minDaemon": "0.9.0",
+  "minProtocol": "5.1",
+  "capabilities": [
+    "process",
+    "log"
+  ],
+  "processPatterns": [
+    "Cursor",
+    "cursor-agent"
+  ],
+  "logPaths": [
+    {
+      "glob": "~/.cursor/ai-tracking/**/*.jsonl",
+      "parser": "generic-ndjson-v1",
+      "watchMode": "poll"
+    }
+  ],
+  "tokenFields": {
+    "input": "input_tokens",
+    "output": "output_tokens",
+    "model": "model"
+  },
+  "allowedFields": [
+    "session_id",
+    "tool_name",
+    "duration_ms",
+    "token_counts"
+  ],
+  "redactedFields": [
+    "prompt",
+    "response",
+    "content"
+  ],
+  "contentPolicy": "metadata-only",
+  "signature": "ae5NoPlny8+bFseS0zlAFY9gNfrg18z6ZAREhL4c/tdtak1vV20lRyvftxLLt1GD+FnF6pyopgVDeCl929RxBQ==",
+  "bundleHash": "d282f3c10f2136c54bcb20f1fa5738078e0581acaf33625201f0189d2e245606"
+}

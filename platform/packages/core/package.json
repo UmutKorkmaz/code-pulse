@@ -1,0 +1,42 @@
+{
+  "name": "@codepulse/core",
+  "version": "0.1.0",
+  "description": "Code Pulse shared utilities",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./paths": {
+      "types": "./dist/paths.d.ts",
+      "default": "./dist/paths.js"
+    },
+    "./db": {
+      "types": "./dist/db/DatabaseV5.d.ts",
+      "default": "./dist/db/DatabaseV5.js"
+    },
+    "./db/schema-v5": {
+      "types": "./dist/db/schema-v5.d.ts",
+      "default": "./dist/db/schema-v5.js"
+    },
+    "./snapshots": {
+      "types": "./dist/snapshots/SnapshotManager.d.ts",
+      "default": "./dist/snapshots/SnapshotManager.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@codepulse/protocol": "file:../protocol",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0"
+  },
+  "license": "MIT"
+}

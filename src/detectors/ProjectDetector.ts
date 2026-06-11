@@ -1,7 +1,10 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { execFileSync } from 'child_process';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+
+const execFileAsync = promisify(execFile);
 
 export interface ProjectInfo {
     name: string;
@@ -23,8 +26,12 @@ export interface ProjectMetrics {
 }
 
 export class ProjectDetector {
+    private static readonly BRANCH_CACHE_TTL_MS = 5000;
+
     private currentProject: ProjectInfo | null = null;
     private projectCache: Map<string, ProjectInfo> = new Map();
+    private branchCache: Map<string, { branch: string | undefined; expiresAt: number }> = new Map();
+    private branchLookups: Map<string, Promise<string | undefined>> = new Map();
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     constructor() {}
@@ -33,24 +40,57 @@ export class ProjectDetector {
         return this.getCurrentProjectInfo(document)?.name || 'unknown';
     }
 
-    public getCurrentBranch(document?: vscode.TextDocument): string | undefined {
+    public async getCurrentBranch(document?: vscode.TextDocument): Promise<string | undefined> {
         const projectPath = this.getProjectPath(document);
         if (!projectPath) {
             return undefined;
         }
 
+        // Branch lookups spawn a git child process. Callers resolve session
+        // context on every text change, so cache per project (with in-flight
+        // dedup) to avoid forking git several times a second while typing.
+        const cached = this.branchCache.get(projectPath);
+        if (cached && cached.expiresAt > Date.now()) {
+            return cached.branch;
+        }
+
+        const inFlight = this.branchLookups.get(projectPath);
+        if (inFlight) {
+            return inFlight;
+        }
+
+        const lookup = this.resolveBranch(projectPath).finally(() => {
+            this.branchLookups.delete(projectPath);
+        });
+
+        this.branchLookups.set(projectPath, lookup);
+        return lookup;
+    }
+
+    private async resolveBranch(projectPath: string): Promise<string | undefined> {
+        let branch: string | undefined;
+
         try {
-            const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+            // Arg-array (no shell) keeps the invocation injection-safe; execFile
+            // pipes stdout/stderr internally and stderr output is discarded.
+            const { stdout } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
                 cwd: projectPath,
                 encoding: 'utf8',
                 timeout: 3000,
-                stdio: ['ignore', 'pipe', 'ignore']
-            }).trim();
+                windowsHide: true
+            });
 
-            return branch || undefined;
+            branch = stdout.trim() || undefined;
         } catch {
-            return undefined;
+            branch = undefined;
         }
+
+        this.branchCache.set(projectPath, {
+            branch,
+            expiresAt: Date.now() + ProjectDetector.BRANCH_CACHE_TTL_MS
+        });
+
+        return branch;
     }
 
     public getCurrentProjectInfo(document?: vscode.TextDocument): ProjectInfo | null {
@@ -91,6 +131,8 @@ export class ProjectDetector {
 
     public clearCache(): void {
         this.projectCache.clear();
+        this.branchCache.clear();
+        this.branchLookups.clear();
         this.currentProject = null;
     }
 

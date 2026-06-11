@@ -89,6 +89,7 @@
 /* Layout spans */
 .current-session-card { grid-column: span 8; }
 .stats-card            { grid-column: span 4; }
+.goals-card            { grid-column: span 8; }
 .chart-card            { grid-column: span 12; }
 .breakdown-card        { grid-column: span 6; }
 .activity-card         { grid-column: span 12; }
@@ -174,6 +175,78 @@
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--cp-muted);
+}
+
+/* ---------- Goals Card ---------- */
+.goal-overview {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.goal-group {
+    border: 1px solid var(--cp-border);
+    border-radius: 4px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--cp-bg-elevated);
+}
+
+.goal-group-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--cp-muted);
+    font-weight: 500;
+}
+
+.goal-group-subtitle {
+    font-size: 12px;
+    color: var(--cp-fg);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    margin-bottom: 2px;
+}
+
+.goal-metric {
+    border: 1px solid var(--cp-border);
+    border-radius: 3px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--cp-bg);
+}
+
+.goal-metric-label {
+    font-size: 10px;
+    color: var(--cp-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.goal-metric-value {
+    font-size: 20px;
+    line-height: 1;
+    color: var(--cp-fg);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+
+.goal-metric-detail {
+    font-size: 11px;
+    color: var(--cp-muted);
+}
+
+.goal-on-track .goal-metric-value,
+.goal-complete .goal-metric-value {
+    color: var(--cp-green);
+}
+
+.goal-complete .goal-metric-value {
+    color: var(--cp-accent);
 }
 
 /* ---------- Chart Container ---------- */
@@ -332,6 +405,14 @@
     align-items: center;
 }
 
+.quick-command-row {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
 .filter-input {
     height: 26px;
     padding: 0 8px;
@@ -352,6 +433,12 @@
 .filter-input[type="search"] {
     flex: 1;
     min-width: 180px;
+}
+
+.session-filter-hint {
+    flex: 1 1 100%;
+    font-size: 11px;
+    color: var(--cp-muted);
 }
 
 .sessions-table-wrapper {
@@ -460,6 +547,25 @@
     font-weight: 500;
 }
 
+.tag-pill {
+    display: inline-block;
+    margin: 0 4px 2px 0;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 10px;
+    letter-spacing: 0.02em;
+    background: color-mix(in srgb, var(--cp-accent) 20%, transparent);
+    color: var(--cp-accent);
+    font-weight: 500;
+}
+
+.tags-cell {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .score-bar {
     display: inline-flex;
     align-items: center;
@@ -489,6 +595,131 @@
     text-align: center;
     color: var(--cp-muted);
     padding: 24px !important;
+}
+
+/* ---------- AI Tools Card ----------
+ * Grid span comes from .breakdown-card (6 cols, 12 below 1024px) like the
+ * Projects / Languages cards.
+ */
+.ai-offline-hint {
+    font-size: 11px;
+    color: var(--cp-yellow);
+    background: color-mix(in srgb, var(--cp-yellow) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--cp-yellow) 35%, transparent);
+    border-radius: 3px;
+    padding: 4px 8px;
+}
+
+.ai-tools-list,
+.ai-extensions-list {
+    max-height: 180px;
+}
+
+.ai-tool-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px;
+    border-radius: 3px;
+    transition: background 0.1s ease;
+}
+
+.ai-tool-item:hover {
+    background: var(--cp-hover);
+}
+
+.ai-tool-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.ai-tool-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--cp-fg);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ai-status-pill {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 500;
+    flex: 0 0 auto;
+}
+
+.ai-status-pill.terminal {
+    background: color-mix(in srgb, var(--cp-accent) 18%, transparent);
+    color: var(--cp-accent);
+}
+
+.ai-status-pill.running {
+    background: color-mix(in srgb, var(--cp-green) 18%, transparent);
+    color: var(--cp-green);
+}
+
+.ai-status-pill.idle {
+    background: color-mix(in srgb, var(--cp-muted) 15%, transparent);
+    color: var(--cp-muted);
+}
+
+.ai-tool-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    font-size: 11px;
+    color: var(--cp-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.ai-extensions-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--cp-muted);
+    margin-top: 4px;
+}
+
+.ai-extension-item {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    transition: background 0.1s ease;
+}
+
+.ai-extension-item:hover {
+    background: var(--cp-hover);
+}
+
+.ai-extension-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--cp-fg);
+}
+
+.ai-extension-version {
+    color: var(--cp-muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+
+.ai-empty {
+    color: var(--cp-muted);
+    font-size: 12px;
+    padding: 8px 6px;
 }
 
 .sessions-pagination {
@@ -545,7 +776,8 @@
 /* ---------- Responsive ---------- */
 @media (max-width: 1024px) {
     .current-session-card,
-    .stats-card { grid-column: span 12; }
+    .stats-card,
+    .goals-card { grid-column: span 12; }
     .breakdown-card { grid-column: span 12; }
 }
 

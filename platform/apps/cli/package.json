@@ -1,0 +1,22 @@
+{
+  "name": "@codepulse/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Code Pulse command-line interface",
+  "bin": {
+    "codepulse": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "start": "node dist/index.js",
+    "dev": "tsc && node dist/index.js"
+  },
+  "dependencies": {
+    "@codepulse/client": "file:../../packages/client"
+  },
+  "files": [
+    "dist"
+  ]
+}

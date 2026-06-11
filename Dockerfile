@@ -34,10 +34,19 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends xvfb libgtk-3-0 libx11-xcb1 \
     libnss3 libxss1 libasound2 libdrm2 libgbm1 libxshmfence1 && \
     rm -rf /var/lib/apt/lists/*
-RUN xvfb-run npm test || true
+RUN xvfb-run -a npm test
+
+# --------------- platform stage ---------------
+FROM base AS platform
+WORKDIR /app/platform
+RUN npm ci
+RUN npm test
 
 # --------------- ci (default) stage ---------------
 FROM base AS ci
 RUN npm run lint && \
     npx tsc --noEmit && \
     npm run compile
+# Pull a marker from the platform stage so the default ci target
+# also builds (and therefore runs) the platform workspace tests.
+COPY --from=platform /app/platform/package.json /tmp/.platform-tests-passed

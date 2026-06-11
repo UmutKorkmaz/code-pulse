@@ -17,7 +17,10 @@
     languageStats: {},
     isTracking: false,
     isIdle: false,
+    activeTagFilter: null,
     settings: null,
+    sessionsLookup: {},
+    goalProgress: null,
     receivedAt: Date.now()
   };
 
@@ -37,6 +40,7 @@
     setupEventListeners();
     requestFullData();
     requestAllSessions(30);
+    requestWindowSessions(30);
     setupSessionsTable();
     startPeriodicUpdates();
     showLoadingState();
@@ -51,11 +55,27 @@
     pageSize: 50,
     sortKey: 'startTime',
     sortDir: 'desc',
-    filters: { search: '', project: '', language: '', days: 30 }
+    filters: { search: '', project: '', language: '', tag: '', days: 30 }
   };
 
   function requestAllSessions(days) {
     vscode.postMessage({ command: 'getAllSessions', days });
+  }
+
+  function requestWindowSessions(days) {
+    const end = new Date();
+    const start = new Date();
+    if (days > 0) {
+      start.setDate(end.getDate() - days);
+    } else {
+      start.setFullYear(2000, 0, 1);
+    }
+
+    vscode.postMessage({
+      command: 'getDateRangeData',
+      startDate: start.toISOString(),
+      endDate: end.toISOString()
+    });
   }
 
   function updateAllSessions(payload) {
@@ -66,13 +86,17 @@
 
   function populateFilterOptions() {
     const projects = new Set(),
-      languages = new Set();
+      languages = new Set(),
+      tags = new Set();
     sessionsState.raw.forEach(s => {
       if (s.project) projects.add(s.project);
       if (s.language) languages.add(s.language);
+      getSessionTags(s).forEach(tag => tags.add(tag));
     });
     const projSel = document.getElementById('sessionProjectFilter');
     const langSel = document.getElementById('sessionLanguageFilter');
+    const tagSel = document.getElementById('sessionTagFilter');
+    const activeTag = sessionsState.filters.tag || '';
     if (projSel) {
       const current = projSel.value;
       projSel.innerHTML =
@@ -93,14 +117,30 @@
           .join('');
       langSel.value = current;
     }
+    if (tagSel) {
+      const current = tagSel.value || activeTag;
+      const ordered = [...tags].sort();
+      tagSel.innerHTML =
+        '<option value="">All tags</option>' +
+        ordered.map(tag => `<option value="${escapeHtml(tag)}">${escapeHtml(tag)}</option>`).join('');
+      if (current && ordered.indexOf(current) === -1) {
+        tagSel.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(current)}">${escapeHtml(current)}</option>`);
+      }
+      tagSel.value = current;
+    }
   }
 
   function applySessionsFilters() {
-    const { search, project, language } = sessionsState.filters;
+    const { search, project, language, tag } = sessionsState.filters;
     const q = search.toLowerCase().trim();
+    const normalizedTag = normalizeTag(tag);
     sessionsState.filtered = sessionsState.raw.filter(s => {
       if (project && s.project !== project) return false;
       if (language && s.language !== language) return false;
+      if (normalizedTag) {
+        const sessionTags = new Set(getSessionTags(s));
+        if (!sessionTags.has(normalizedTag)) return false;
+      }
       if (q) {
         const hay = `${s.file || ''} ${s.branch || ''} ${s.project || ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -110,6 +150,7 @@
     sortSessions();
     sessionsState.page = 0;
     renderSessionsTable();
+    updateActivityList();
   }
 
   function sortSessions() {
@@ -121,6 +162,10 @@
       if (sortKey === 'startTime') {
         av = new Date(av).getTime();
         bv = new Date(bv).getTime();
+      }
+      if (sortKey === 'tags') {
+        av = getSessionTagSummary(a);
+        bv = getSessionTagSummary(b);
       }
       if (typeof av === 'string') return av.localeCompare(bv || '') * dir;
       return ((av || 0) - (bv || 0)) * dir;
@@ -149,7 +194,7 @@
 
     if (rows.length === 0) {
       tbody.innerHTML =
-        '<tr><td colspan="7" class="loading-cell">No sessions match your filters</td></tr>';
+        '<tr><td colspan="8" class="loading-cell">No sessions match your filters</td></tr>';
       return;
     }
 
@@ -167,6 +212,7 @@
         const fileName = (s.file || '').split(/[/\\]/).pop() || '—';
         const score = Math.round(s.productivityScore || 0);
         const scoreClass = score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low';
+        const tags = getSessionTags(s).map(tag => `<span class="tag-pill">${escapeHtml(tag)}</span>`).join(' ');
 
         return `
         <tr>
@@ -177,6 +223,7 @@
           <td>${escapeHtml(s.project || '—')}</td>
           <td><span class="lang-pill">${escapeHtml(s.language || '—')}</span></td>
           <td class="file-cell" title="${escapeHtml(s.file || '')}">${escapeHtml(fileName)}</td>
+          <td class="tags-cell">${tags || '—'}</td>
           <td class="muted">${escapeHtml(s.branch || '—')}</td>
           <td class="num">${escapeHtml(durStr)}</td>
           <td class="num">
@@ -194,10 +241,13 @@
     const search = document.getElementById('sessionSearch');
     const proj = document.getElementById('sessionProjectFilter');
     const lang = document.getElementById('sessionLanguageFilter');
+    const tag = document.getElementById('sessionTagFilter');
     const range = document.getElementById('sessionDateRange');
     const clear = document.getElementById('sessionClearBtn');
     const prev = document.getElementById('sessionPrevBtn');
     const next = document.getElementById('sessionNextBtn');
+    const quickCommand = document.getElementById('quickCommandInput');
+    const quickCommandBtn = document.getElementById('quickCommandBtn');
 
     if (search)
       search.addEventListener(
@@ -220,21 +270,43 @@
         applySessionsFilters();
       });
 
+    if (tag)
+      tag.addEventListener('change', e => {
+        syncTagFilterFromDashboard(e.target.value);
+      });
+
+    if (quickCommandBtn)
+      quickCommandBtn.addEventListener('click', () => {
+        runQuickCommand(quickCommand ? quickCommand.value : '');
+      });
+
+    if (quickCommand)
+      quickCommand.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          runQuickCommand(e.target.value);
+        }
+      });
+
     if (range)
       range.addEventListener('change', e => {
         const days = parseInt(e.target.value, 10);
         sessionsState.filters.days = days;
         requestAllSessions(days);
+        requestWindowSessions(days);
       });
 
     if (clear)
       clear.addEventListener('click', () => {
-        sessionsState.filters = { search: '', project: '', language: '', days: 30 };
+        sessionsState.filters = { search: '', project: '', language: '', tag: '', days: 30 };
         if (search) search.value = '';
         if (proj) proj.value = '';
         if (lang) lang.value = '';
+        if (tag) tag.value = '';
         if (range) range.value = '30';
+        vscode.postMessage({ command: 'filterByTag', tag: null });
         requestAllSessions(30);
+        requestWindowSessions(30);
       });
 
     if (prev)
@@ -286,13 +358,21 @@
       'todayActiveTime',
       'todayProductivity',
       'todaySessions',
+      'goalProjectName',
+      'globalDailyGoal',
+      'globalWeeklyGoal',
+      'projectDailyGoal',
+      'projectWeeklyGoal',
       'toggleTrackingBtn',
       'weeklyChart',
       'projectChart',
       'languageChart',
       'projectList',
       'languageList',
-      'activityList'
+      'activityList',
+      'aiToolsList',
+      'aiExtensionsList',
+      'aiOfflineHint'
     ];
 
     elementIds.forEach(id => {
@@ -329,6 +409,9 @@
       case 'updateFullData':
         updateDashboardData(message.data);
         break;
+      case 'setLocalTagFilter':
+        applyLocalTagFilter(message.data?.tag);
+        break;
       case 'updateDateRangeData':
         updateDateRangeData(message.data);
         break;
@@ -340,6 +423,9 @@
         break;
       case 'updateAllSessions':
         updateAllSessions(message.data);
+        break;
+      case 'updateAiData':
+        updateAiTools(message.data);
         break;
       case 'error':
         showError(message.error);
@@ -381,6 +467,7 @@
   function refreshDashboard() {
     showLoadingState();
     requestFullData();
+    requestWindowSessions(sessionsState.filters.days);
   }
 
   // Toggle time tracking
@@ -399,10 +486,12 @@
   // Update dashboard with new data
   function updateDashboardData(data) {
     dashboardData = { ...dashboardData, ...data, receivedAt: Date.now() };
+    applyLocalTagFilter(data.activeTagFilter);
 
     updateStatusIndicator();
     updateCurrentSession();
     updateTodayStats();
+    updateGoalCards();
     updateWeeklyChart();
     updateProjectChart();
     updateLanguageChart();
@@ -413,8 +502,24 @@
 
   function updateDateRangeData(data) {
     dashboardData = { ...dashboardData, ...data };
+    if (Array.isArray(data.sessions)) {
+      sessionsState.raw = data.sessions;
+      populateFilterOptions();
+      applyLocalTagFilter(data.tagFilter);
+    }
+    if (data.projectStats) {
+      dashboardData.projectStats = data.projectStats;
+    }
+    if (data.languageStats) {
+      dashboardData.languageStats = data.languageStats;
+    }
+    if (data.dateRange) {
+      dashboardData.dateRange = data.dateRange;
+    }
+    applyLocalTagFilter(data.tagFilter);
     updateProjectChart();
     updateLanguageChart();
+    syncActivitiesCache();
     updateActivityList();
   }
 
@@ -458,6 +563,9 @@
       const productivity = currentSession.productivityScore
         ? Math.round(currentSession.productivityScore) + '%'
         : 'Calculating...';
+      const tagPills = getSessionTags(currentSession)
+        .map(tag => `<span class="tag-pill">${escapeHtml(tag)}</span>`)
+        .join(' ');
 
       elements.sessionInfo.innerHTML = `
                 <div><strong>Project:</strong> ${escapeHtml(project)}</div>
@@ -467,6 +575,7 @@
                 <div><strong>Productivity:</strong> ${productivity}</div>
                 <div><strong>Heartbeats:</strong> ${currentSession.heartbeats || 0}</div>
                 <div><strong>Keystrokes:</strong> ${currentSession.keystrokes || 0}</div>
+                <div><strong>Tags:</strong> ${tagPills || '—'}</div>
             `;
     } else {
       elements.sessionTimer.textContent = '--:--:--';
@@ -517,6 +626,111 @@
     if (elements.todaySessions) {
       elements.todaySessions.textContent = String(todayStats.sessionCount || 0);
     }
+  }
+
+  // Update goal progress cards
+  function updateGoalCards() {
+    const goalData = dashboardData.goalProgress;
+    if (!goalData) {
+      hideGoalPanels();
+      return;
+    }
+
+    if (elements.goalProjectName) {
+      elements.goalProjectName.textContent = goalData.project?.projectName || 'No project selected';
+    }
+
+    const hasGlobalDaily = goalData.global?.daily?.isGoalSet;
+    const hasGlobalWeekly = goalData.global?.weekly?.isGoalSet;
+    const hasProjectDaily = goalData.project?.daily?.isGoalSet;
+    const hasProjectWeekly = goalData.project?.weekly?.isGoalSet;
+
+    if (elements.globalDailyGoal) {
+      renderGoalMetric(elements.globalDailyGoal, goalData.global?.daily, hasGlobalDaily);
+    }
+
+    if (elements.globalWeeklyGoal) {
+      renderGoalMetric(elements.globalWeeklyGoal, goalData.global?.weekly, hasGlobalWeekly);
+    }
+
+    if (elements.projectDailyGoal) {
+      renderGoalMetric(elements.projectDailyGoal, goalData.project?.daily, hasProjectDaily);
+    }
+
+    if (elements.projectWeeklyGoal) {
+      renderGoalMetric(elements.projectWeeklyGoal, goalData.project?.weekly, hasProjectWeekly);
+    }
+  }
+
+  function renderGoalMetric(element, metric, isSet) {
+    if (!element) {
+      return;
+    }
+
+    const valueEl = element.querySelector('.goal-metric-value');
+    const detailEl = element.querySelector('.goal-metric-detail');
+    if (!valueEl || !detailEl) {
+      return;
+    }
+
+    if (!metric || !isSet) {
+      valueEl.textContent = 'Not set';
+      detailEl.textContent = 'No target';
+      element.classList.remove('goal-on-track', 'goal-complete');
+      return;
+    }
+
+    const pct = Math.min(100, Math.max(0, Math.round(metric.percent || 0)));
+    const remainText = formatGoalMinutes(metric.remainingMinutes || 0);
+    const etaText = metric.etaAt ? `ETA ${formatGoalEta(metric.etaAt)}` : 'ETA unavailable';
+
+    valueEl.textContent = `${pct}%`;
+    detailEl.textContent = `${remainText} remaining • ${etaText}`;
+    element.classList.remove('goal-on-track', 'goal-complete');
+
+    if (pct >= 100) {
+      element.classList.add('goal-complete');
+    } else if (pct >= 75) {
+      element.classList.add('goal-on-track');
+    }
+  }
+
+  function hideGoalPanels() {
+    const cards = [elements.globalDailyGoal, elements.globalWeeklyGoal, elements.projectDailyGoal, elements.projectWeeklyGoal];
+    cards.forEach(card => {
+      if (!card) {
+        return;
+      }
+      const valueEl = card.querySelector('.goal-metric-value');
+      const detailEl = card.querySelector('.goal-metric-detail');
+      if (valueEl) valueEl.textContent = 'Not set';
+      if (detailEl) detailEl.textContent = 'No target';
+      card.classList.remove('goal-on-track', 'goal-complete');
+    });
+
+    if (elements.goalProjectName) {
+      elements.goalProjectName.textContent = 'No project selected';
+    }
+  }
+
+  function formatGoalMinutes(totalMinutes) {
+    const total = Math.max(0, Math.round(totalMinutes));
+    const hours = Math.floor(total / 60);
+    const mins = total % 60;
+
+    if (hours > 0) {
+      return `${hours}h ${mins}m`;
+    }
+
+    return `${mins}m`;
+  }
+
+  function formatGoalEta(timestampMs) {
+    const d = new Date(timestampMs);
+    return d.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   }
 
   // Resolve CSS variable to actual color value for canvas rendering
@@ -811,7 +1025,8 @@
   function updateActivityList() {
     if (!elements.activityList) return;
 
-    const recentActivities = (dashboardData.activities || []).slice(-10).reverse();
+    syncActivitiesCache();
+    const recentActivities = getFilteredActivities().slice(-10).reverse();
     if (recentActivities.length === 0) {
       elements.activityList.innerHTML = `
                 <div class="empty-state">
@@ -846,6 +1061,239 @@
             `;
       })
       .join('');
+  }
+
+  // Render the AI Tools card: per-tool status + today's active/run time + tokens,
+  // plus the AI extensions inventory. All user-derived strings pass escapeHtml().
+  function updateAiTools(data) {
+    const list = elements.aiToolsList;
+    const extensionsList = elements.aiExtensionsList;
+    if (!list || !extensionsList) return;
+
+    const payload = data || {};
+
+    if (elements.aiOfflineHint) {
+      elements.aiOfflineHint.hidden = !!payload.daemonAvailable;
+    }
+
+    const tools = Array.isArray(payload.tools) ? payload.tools : [];
+    if (tools.length === 0) {
+      list.innerHTML = '<div class="ai-empty">No AI tool activity today</div>';
+    } else {
+      list.innerHTML = tools
+        .map(tool => {
+          const statusClass =
+            tool.status === 'terminal' || tool.status === 'running' ? tool.status : 'idle';
+          const statusLabel =
+            statusClass === 'terminal' ? 'in terminal' : statusClass === 'running' ? 'running' : 'idle';
+          const tokens = `${formatTokens(tool.inputTokens)} in / ${formatTokens(tool.outputTokens)} out`;
+
+          return `
+            <div class="ai-tool-item">
+              <div class="ai-tool-head">
+                <span class="ai-tool-name" title="${escapeHtml(tool.tool || '')}">${escapeHtml(
+            tool.tool || 'unknown'
+          )}</span>
+                <span class="ai-status-pill ${statusClass}">${escapeHtml(statusLabel)}</span>
+              </div>
+              <div class="ai-tool-metrics">
+                <span title="Gap-windowed active work time today">Active ${escapeHtml(
+                  formatTime(tool.activeMsToday || 0)
+                )}</span>
+                <span title="Wall-clock run time today">Run ${escapeHtml(
+                  formatTime(tool.runMsToday || 0)
+                )}</span>
+                <span title="Tokens today (input / output)">${escapeHtml(tokens)}</span>
+              </div>
+            </div>`;
+        })
+        .join('');
+    }
+
+    const extensions = Array.isArray(payload.extensions) ? payload.extensions : [];
+    if (extensions.length === 0) {
+      extensionsList.innerHTML = '<div class="ai-empty">No AI extensions detected</div>';
+    } else {
+      extensionsList.innerHTML = extensions
+        .map(
+          ext => `
+            <div class="ai-extension-item">
+              <span class="ai-extension-name" title="${escapeHtml(ext.id || '')}">${escapeHtml(
+            ext.displayName || ext.id || 'unknown'
+          )}</span>
+              <span class="ai-extension-version">${escapeHtml(ext.version || '')}</span>
+              <span class="ai-status-pill ${ext.isActive ? 'running' : 'idle'}">${
+            ext.isActive ? 'active' : 'inactive'
+          }</span>
+            </div>`
+        )
+        .join('');
+    }
+  }
+
+  function formatTokens(value) {
+    const count = Number(value) || 0;
+    if (count >= 1e6) return `${(count / 1e6).toFixed(1)}M`;
+    if (count >= 1e3) return `${(count / 1e3).toFixed(1)}k`;
+    return String(count);
+  }
+
+  function runQuickCommand(rawValue) {
+    const commandText = String(rawValue || '').trim();
+    if (!commandText) {
+      return;
+    }
+
+    const quickInput = document.getElementById('quickCommandInput');
+    if (quickInput) {
+      quickInput.value = '';
+    }
+
+    if (commandText[0] !== '/') {
+      sessionsState.filters.search = commandText;
+      applySessionsFilters();
+      return;
+    }
+
+    const spaceIndex = commandText.indexOf(' ');
+    const command = (spaceIndex === -1 ? commandText : commandText.slice(0, spaceIndex)).toLowerCase();
+    const payload = (spaceIndex === -1 ? '' : commandText.slice(spaceIndex + 1)).trim();
+
+    if (command === '/tag') {
+      const tags = parseTagInput(payload);
+      if (tags.length === 0) {
+        showError('Tag command requires at least one tag.');
+        return;
+      }
+      vscode.postMessage({ command: 'addSessionTag', tags });
+      return;
+    }
+
+    if (command === '/clear-tags') {
+      vscode.postMessage({ command: 'clearSessionTags' });
+      return;
+    }
+
+    if (command === '/filter') {
+      vscode.postMessage({ command: 'filterByTag', tag: parseQuickFilter(payload) });
+      return;
+    }
+
+    showError('Unknown quick command. Use /tag, /filter, or /clear-tags.');
+  }
+
+  function parseQuickFilter(payload) {
+    const value = parseTagInput(payload)[0] || '';
+    return value || null;
+  }
+
+  function applyLocalTagFilter(rawTag) {
+    setTagFilterLocally(rawTag, false);
+    dashboardData.activeTagFilter = sessionsState.filters.tag || null;
+
+    applySessionsFilters();
+    syncActivitiesCache();
+  }
+
+  function syncTagFilterFromDashboard(rawTag) {
+    setTagFilterLocally(rawTag, true);
+  }
+
+  function setTagFilterLocally(rawTag, syncToHost) {
+    const normalized = normalizeTag(rawTag);
+    sessionsState.filters.tag = normalized;
+
+    const tagFilterEl = document.getElementById('sessionTagFilter');
+    if (tagFilterEl) {
+      if (normalized && !Array.from(tagFilterEl.options).some(option => option.value === normalized)) {
+        const fallbackOption = document.createElement('option');
+        fallbackOption.value = normalized;
+        fallbackOption.textContent = normalized;
+        tagFilterEl.appendChild(fallbackOption);
+      }
+
+      if (tagFilterEl.value !== normalized) {
+        tagFilterEl.value = normalized;
+      }
+    }
+
+    if (syncToHost) {
+      vscode.postMessage({ command: 'filterByTag', tag: normalized || null });
+    }
+  }
+
+  function syncActivitiesCache() {
+    const sourceSessions = sessionsState.raw.length > 0 ? sessionsState.raw : dashboardData.sessions || [];
+    dashboardData.sessionsLookup = sourceSessions.reduce((map, session) => {
+      if (session && session.id) {
+        map[session.id] = session;
+      }
+      return map;
+    }, {});
+  }
+
+  function getSessionFromCache(sessionId) {
+    return (sessionId && dashboardData.sessionsLookup && dashboardData.sessionsLookup[sessionId]) || null;
+  }
+
+  function getFilteredActivities() {
+    const activeTag = normalizeTag(sessionsState.filters.tag);
+    const activeProject = sessionsState.filters.project;
+    const activeLanguage = sessionsState.filters.language;
+
+    return (dashboardData.activities || []).filter(activity => {
+      if (activeProject && (activity.project || '') !== activeProject) return false;
+      if (activeLanguage && (activity.language || '') !== activeLanguage) return false;
+
+      if (!activeTag) return true;
+      const session = getSessionFromCache(activity.sessionId);
+      if (!session) return false;
+
+      const sessionTags = new Set(getSessionTags(session));
+      return sessionTags.has(activeTag);
+    });
+  }
+
+  function parseTagInput(rawTags) {
+    return String(rawTags || '')
+      .split(',')
+      .map(tag => tag.trim().toLowerCase())
+      .filter(tag => tag.length > 0)
+      .filter((tag, index, tags) => tags.indexOf(tag) === index);
+  }
+
+  function normalizeTag(value) {
+    if (!value) {
+      return '';
+    }
+    return String(value).trim().toLowerCase();
+  }
+
+  function getSessionTags(session) {
+    if (!session || !session.tags) {
+      return [];
+    }
+
+    if (Array.isArray(session.tags)) {
+      return parseTagInput(session.tags.join(','));
+    }
+
+    if (typeof session.tags === 'string') {
+      try {
+        const parsed = JSON.parse(session.tags);
+        if (Array.isArray(parsed)) {
+          return parseTagInput(parsed.join(','));
+        }
+      } catch {
+        return parseTagInput(session.tags);
+      }
+    }
+
+    return [];
+  }
+
+  function getSessionTagSummary(session) {
+    return getSessionTags(session).join(',');
   }
 
   // Utility functions
@@ -913,11 +1361,30 @@
   }
 
   function showLoadingState() {
+    const goalCardMetricNodes = [];
+
+    [elements.globalDailyGoal, elements.globalWeeklyGoal, elements.projectDailyGoal, elements.projectWeeklyGoal].forEach(card => {
+      if (!card) {
+        return;
+      }
+
+      const valueEl = card.querySelector('.goal-metric-value');
+      const detailEl = card.querySelector('.goal-metric-detail');
+      if (valueEl) {
+        goalCardMetricNodes.push(valueEl);
+      }
+      if (detailEl) {
+        goalCardMetricNodes.push(detailEl);
+      }
+    });
+
     const loadingElements = [
       elements.sessionTimer,
       elements.todayTotalTime,
       elements.todayActiveTime,
-      elements.todayProductivity
+      elements.todayProductivity,
+      elements.goalProjectName,
+      ...goalCardMetricNodes
     ];
 
     loadingElements.forEach(el => {
@@ -965,7 +1432,10 @@
     setInterval(updateSessionTimer, 1000);
 
     // Refresh data every 60 seconds
-    setInterval(requestFullData, 60000);
+    setInterval(() => {
+      requestFullData();
+      requestWindowSessions(sessionsState.filters.days || 30);
+    }, 60000);
   }
 
   // Initialize when DOM is ready

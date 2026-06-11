@@ -3,6 +3,7 @@ import { ConfigManager } from '../utils/ConfigManager';
 import { Logger } from '../utils/Logger';
 import { CodingSession } from '../tracker/TimeTracker';
 import { ActivityEvent } from '../tracker/ActivityDetector';
+import { attachSameOriginRedirectRetry } from './sync/providers';
 
 export interface SyncStatus {
     enabled: boolean;
@@ -22,10 +23,16 @@ export interface CloudSyncConfig {
 }
 
 export class CloudSync {
+    private static readonly MAX_PENDING_SESSIONS = 500;
+    private static readonly MAX_PENDING_ACTIVITIES = 2000;
+    private static readonly DROP_WARNING_INTERVAL_MS = 60000;
+
     private client: AxiosInstance;
     private syncTimer: NodeJS.Timeout | null = null;
     private pendingSessions: CodingSession[] = [];
     private pendingActivities: ActivityEvent[] = [];
+    private droppedSinceLastWarning = 0;
+    private lastDropWarningAt = 0;
     private isEnabled = false;
     private connectionStatus: 'connected' | 'disconnected' | 'error' = 'disconnected';
     private lastSyncTime: Date | null = null;
@@ -41,12 +48,14 @@ export class CloudSync {
         this.client = axios.create({
             baseURL: this.config.apiUrl,
             timeout: this.config.timeout,
+            maxRedirects: 0,
             headers: {
                 'Authorization': `Bearer ${this.config.apiKey}`,
                 'Content-Type': 'application/json',
                 'User-Agent': 'CodePulse/1.0.0'
             }
         });
+        attachSameOriginRedirectRetry(this.client);
 
         if (this.isEnabled && this.config.apiUrl && this.config.apiKey) {
             void this.initialize().catch((error) => {
@@ -83,7 +92,7 @@ export class CloudSync {
 
     public async syncSession(session: CodingSession): Promise<void> {
         if (!this.isEnabled || this.connectionStatus !== 'connected') {
-            this.pendingSessions.push(session);
+            this.enqueuePendingSession(session);
             return;
         }
 
@@ -93,13 +102,13 @@ export class CloudSync {
 
         } catch (error) {
             this.logger.warn(`Failed to sync session, adding to pending: ${error}`);
-            this.pendingSessions.push(session);
+            this.enqueuePendingSession(session);
         }
     }
 
     public async syncActivity(activity: ActivityEvent): Promise<void> {
         if (!this.isEnabled || this.connectionStatus !== 'connected') {
-            this.pendingActivities.push(activity);
+            this.enqueuePendingActivity(activity);
             return;
         }
 
@@ -109,7 +118,7 @@ export class CloudSync {
 
         } catch (error) {
             this.logger.warn(`Failed to sync activity, adding to pending: ${error}`);
-            this.pendingActivities.push(activity);
+            this.enqueuePendingActivity(activity);
         }
     }
 
@@ -240,12 +249,14 @@ export class CloudSync {
             this.client = axios.create({
                 baseURL: this.config.apiUrl,
                 timeout: this.config.timeout,
+                maxRedirects: 0,
                 headers: {
                     'Authorization': `Bearer ${this.config.apiKey}`,
                     'Content-Type': 'application/json',
                     'User-Agent': 'CodePulse/1.0.0'
                 }
             });
+            attachSameOriginRedirectRetry(this.client);
 
             // Restart sync if enabled
             if (this.isEnabled) {
@@ -266,6 +277,43 @@ export class CloudSync {
 
         this.connectionStatus = 'disconnected';
         this.logger.info('Cloud sync stopped');
+    }
+
+    private enqueuePendingSession(session: CodingSession): void {
+        this.pendingSessions.push(session);
+        this.capPendingQueue(this.pendingSessions, CloudSync.MAX_PENDING_SESSIONS);
+    }
+
+    private enqueuePendingActivity(activity: ActivityEvent): void {
+        this.pendingActivities.push(activity);
+        this.capPendingQueue(this.pendingActivities, CloudSync.MAX_PENDING_ACTIVITIES);
+    }
+
+    /**
+     * Bounds a pending queue by dropping its oldest entries, emitting at most
+     * one rate-limited warning (covering all drops since the previous warning)
+     * instead of one log line per dropped item.
+     */
+    private capPendingQueue(queue: unknown[], maxLength: number): void {
+        if (queue.length <= maxLength) {
+            return;
+        }
+
+        const dropCount = queue.length - maxLength;
+        queue.splice(0, dropCount);
+        this.droppedSinceLastWarning += dropCount;
+
+        const now = Date.now();
+        if (now - this.lastDropWarningAt < CloudSync.DROP_WARNING_INTERVAL_MS) {
+            return;
+        }
+
+        this.logger.warn(
+            `Cloud sync pending queue full — dropped ${this.droppedSinceLastWarning} oldest item(s) ` +
+                `(caps: ${CloudSync.MAX_PENDING_SESSIONS} sessions / ${CloudSync.MAX_PENDING_ACTIVITIES} activities)`
+        );
+        this.droppedSinceLastWarning = 0;
+        this.lastDropWarningAt = now;
     }
 
     private loadConfig(): CloudSyncConfig {

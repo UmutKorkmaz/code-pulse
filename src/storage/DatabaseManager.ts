@@ -27,7 +27,7 @@ export interface DailyRollup {
 }
 
 export class DatabaseManager {
-    private static readonly SCHEMA_VERSION = 3;
+    private static readonly SCHEMA_VERSION = 5;
 
     private db: sqlite3.Database | null = null;
     private dbPath: string;
@@ -49,6 +49,7 @@ export class DatabaseManager {
                 try {
                     await this.run('PRAGMA foreign_keys = ON');
                     await this.run('PRAGMA busy_timeout = 5000');
+                    await this.enableWalMode();
                     await this.migrateSchema();
                     resolve();
                 } catch (error) {
@@ -56,6 +57,36 @@ export class DatabaseManager {
                 }
             });
         });
+    }
+
+    /**
+     * Switch the database to WAL journal mode for better concurrent read/write
+     * behavior. Some filesystems (e.g. network shares) refuse WAL; in that case
+     * we log a warning and continue with whatever journal mode SQLite kept.
+     */
+    private async enableWalMode(): Promise<void> {
+        try {
+            const row = await this.get<{ journal_mode: string }>('PRAGMA journal_mode = WAL');
+            const mode = row?.journal_mode || 'unknown';
+
+            if (mode.toLowerCase() === 'wal') {
+                console.info(`CodePulse database journal mode: ${mode}`);
+            } else {
+                console.warn(
+                    `CodePulse database journal mode is '${mode}' — WAL was refused by the filesystem, continuing`
+                );
+            }
+        } catch (error) {
+            console.warn('CodePulse failed to enable WAL journal mode, continuing with default:', error);
+        }
+    }
+
+    /**
+     * Returns the active SQLite journal mode (e.g. 'wal', 'delete').
+     */
+    public async getJournalMode(): Promise<string> {
+        const row = await this.get<{ journal_mode: string }>('PRAGMA journal_mode');
+        return row?.journal_mode || 'unknown';
     }
 
     public async close(): Promise<void> {
@@ -81,8 +112,8 @@ export class DatabaseManager {
             `
                 INSERT INTO sessions (
                     id, start_time, end_time, duration, idle_duration, project, language, file, branch,
-                    is_active, heartbeats, keystrokes, lines_added, lines_removed, productivity_score
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    is_active, heartbeats, keystrokes, lines_added, lines_removed, productivity_score, tags
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `,
             [
                 session.id,
@@ -99,7 +130,8 @@ export class DatabaseManager {
                 session.keystrokes,
                 session.linesAdded,
                 session.linesRemoved,
-                session.productivityScore || null
+                session.productivityScore || null,
+                JSON.stringify(this.normalizeTagsForStorage(session.tags))
             ]
         );
     }
@@ -117,6 +149,7 @@ export class DatabaseManager {
                     lines_added = ?,
                     lines_removed = ?,
                     productivity_score = ?,
+                    tags = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             `,
@@ -130,6 +163,7 @@ export class DatabaseManager {
                 session.linesAdded,
                 session.linesRemoved,
                 session.productivityScore || null,
+                JSON.stringify(this.normalizeTagsForStorage(session.tags)),
                 session.id
             ]
         );
@@ -158,10 +192,32 @@ export class DatabaseManager {
         return this.getSessionsByDateRange(bounds.start, bounds.end);
     }
 
+    /**
+     * Returns the distinct local calendar dates (YYYY-MM-DD, newest first) that
+     * have at least one session with active coding time, bounded to sessions
+     * starting at or after `since`. Used for streak calculation in one query
+     * instead of one query per day.
+     */
+    public async getDistinctCodingDates(since: Date): Promise<string[]> {
+        const rows = await this.all<{ day: string }>(
+            `
+                SELECT DISTINCT date(start_time, 'localtime') AS day
+                FROM sessions
+                WHERE duration > 0 AND start_time >= ?
+                ORDER BY day DESC
+            `,
+            [since.toISOString()]
+        );
+
+        return rows.map(row => row.day);
+    }
+
     public async saveActivityEvent(event: ActivityEvent): Promise<void> {
+        // OR IGNORE: idx_activities_identity dedupes byte-identical events emitted
+        // in the same millisecond (e.g. rapid file_edit bursts) and merged snapshots.
         await this.run(
             `
-                INSERT INTO activities (type, timestamp, session_id, file, language, project, is_idle, metadata)
+                INSERT OR IGNORE INTO activities (type, timestamp, session_id, file, language, project, is_idle, metadata)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             `,
             [
@@ -352,7 +408,9 @@ export class DatabaseManager {
 
     /**
      * Merge a snapshot from another device into this database.
-     * Uses INSERT OR IGNORE on session ID to skip records we already have.
+     * Sessions use INSERT OR IGNORE on session ID; activities and segments use
+     * INSERT OR IGNORE on their natural-identity UNIQUE indexes (see migrateToV5)
+     * to skip records we already have.
      * Returns the number of new records inserted.
      */
     public async mergeSnapshot(snapshot: {
@@ -362,14 +420,15 @@ export class DatabaseManager {
         dailyRollups?: unknown[];
     }): Promise<number> {
         let inserted = 0;
+        let skipped = 0;
 
         for (const raw of snapshot.sessions || []) {
             const s = raw as DatabaseSession;
             const res = await this.run(
                 `INSERT OR IGNORE INTO sessions (
                     id, start_time, end_time, duration, idle_duration, project, language, file, branch,
-                    is_active, heartbeats, keystrokes, lines_added, lines_removed, productivity_score
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    is_active, heartbeats, keystrokes, lines_added, lines_removed, productivity_score, tags
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     s.id,
                     new Date(s.startTime).toISOString(),
@@ -385,10 +444,66 @@ export class DatabaseManager {
                     s.keystrokes || 0,
                     s.linesAdded || 0,
                     s.linesRemoved || 0,
-                    s.productivityScore ?? null
+                    s.productivityScore ?? null,
+                    JSON.stringify(this.normalizeTagsForStorage(s.tags))
                 ]
             );
             inserted += res.changes;
+        }
+
+        for (const raw of snapshot.activities || []) {
+            const a = raw as DatabaseActivity;
+            try {
+                const res = await this.run(
+                    `INSERT OR IGNORE INTO activities (
+                        type, timestamp, session_id, file, language, project, is_idle, metadata
+                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        a.type,
+                        new Date(a.timestamp).toISOString(),
+                        a.sessionId || null,
+                        a.file || null,
+                        a.language || null,
+                        a.project || null,
+                        a.isIdle ? 1 : 0,
+                        a.metadata ? JSON.stringify(a.metadata) : null
+                    ]
+                );
+                inserted += res.changes;
+            } catch {
+                // Malformed record (e.g. invalid timestamp) — skip it, count it below.
+                skipped++;
+            }
+        }
+
+        for (const raw of snapshot.segments || []) {
+            const seg = raw as SessionSegment;
+            try {
+                const res = await this.run(
+                    `INSERT OR IGNORE INTO session_segments (
+                        session_id, segment_type, start_time, end_time, duration, project, language, file
+                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        seg.sessionId,
+                        seg.segmentType,
+                        new Date(seg.startTime).toISOString(),
+                        seg.endTime ? new Date(seg.endTime).toISOString() : null,
+                        seg.duration || 0,
+                        seg.project,
+                        seg.language,
+                        seg.file
+                    ]
+                );
+                inserted += res.changes;
+            } catch {
+                // Segments referencing sessions we don't have violate the FK
+                // (OR IGNORE does not apply to foreign keys) — skip, count below.
+                skipped++;
+            }
+        }
+
+        if (skipped > 0) {
+            console.warn(`CodePulse mergeSnapshot skipped ${skipped} activity/segment record(s) that failed to insert`);
         }
 
         for (const raw of snapshot.dailyRollups || []) {
@@ -479,6 +594,18 @@ export class DatabaseManager {
         if (currentVersion < 3) {
             await this.migrateToV3();
             currentVersion = 3;
+            await this.setSchemaVersion(currentVersion);
+        }
+
+        if (currentVersion < 4) {
+            await this.migrateToV4();
+            currentVersion = 4;
+            await this.setSchemaVersion(currentVersion);
+        }
+
+        if (currentVersion < 5) {
+            await this.migrateToV5();
+            currentVersion = 5;
             await this.setSchemaVersion(currentVersion);
         }
     }
@@ -573,6 +700,48 @@ export class DatabaseManager {
         await this.createBaseIndexes();
     }
 
+    private async migrateToV4(): Promise<void> {
+        await this.addColumnIfMissing('sessions', 'tags', 'TEXT DEFAULT "[]"');
+        await this.run('UPDATE sessions SET tags = COALESCE(tags, "[]") WHERE tags IS NULL');
+    }
+
+    /**
+     * Activities and segments only have local AUTOINCREMENT ids, so cross-device
+     * merge needs a natural identity. Dedupe any pre-existing rows on that
+     * identity, then add UNIQUE indexes so mergeSnapshot can INSERT OR IGNORE.
+     */
+    private async migrateToV5(): Promise<void> {
+        await this.run(
+            `
+                DELETE FROM activities WHERE id NOT IN (
+                    SELECT MIN(id) FROM activities
+                    GROUP BY COALESCE(session_id, ''), timestamp, type, COALESCE(file, '')
+                )
+            `
+        );
+        await this.run(
+            `
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_activities_identity
+                ON activities(COALESCE(session_id, ''), timestamp, type, COALESCE(file, ''))
+            `
+        );
+
+        await this.run(
+            `
+                DELETE FROM session_segments WHERE id NOT IN (
+                    SELECT MIN(id) FROM session_segments
+                    GROUP BY session_id, start_time, segment_type, project, language, file
+                )
+            `
+        );
+        await this.run(
+            `
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_segments_identity
+                ON session_segments(session_id, start_time, segment_type, project, language, file)
+            `
+        );
+    }
+
     private async createBaseIndexes(): Promise<void> {
         const indexes = [
             'CREATE INDEX IF NOT EXISTS idx_sessions_start_time ON sessions(start_time)',
@@ -651,9 +820,45 @@ export class DatabaseManager {
             linesAdded: row.lines_added,
             linesRemoved: row.lines_removed,
             productivityScore: row.productivity_score ?? undefined,
+            tags: this.parseStoredTags(row.tags),
             created_at: row.created_at,
             updated_at: row.updated_at
         };
+    }
+
+    private normalizeTagsForStorage(tags: unknown): string[] {
+        if (!Array.isArray(tags)) {
+            return [];
+        }
+
+        return tags
+            .map(tag => String(tag || '').trim().toLowerCase())
+            .filter(tag => tag.length > 0);
+    }
+
+    private parseStoredTags(rawTags: unknown): string[] | undefined {
+        if (!rawTags) {
+            return undefined;
+        }
+
+        if (Array.isArray(rawTags)) {
+            return this.normalizeTagsForStorage(rawTags);
+        }
+
+        if (typeof rawTags !== 'string') {
+            return undefined;
+        }
+
+        if (!rawTags.trim()) {
+            return [];
+        }
+
+        try {
+            const parsed = JSON.parse(rawTags);
+            return Array.isArray(parsed) ? this.normalizeTagsForStorage(parsed) : [];
+        } catch {
+            return [];
+        }
     }
 
     private mapRowToActivity(row: any): ActivityEvent {

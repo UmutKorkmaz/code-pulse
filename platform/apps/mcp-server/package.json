@@ -1,0 +1,24 @@
+{
+  "name": "@codepulse/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Code Pulse MCP stdio server",
+  "bin": {
+    "codepulse-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@codepulse/client": "file:../../packages/client"
+  },
+  "optionalDependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1"
+  },
+  "files": [
+    "dist"
+  ]
+}

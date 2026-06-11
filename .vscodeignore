@@ -8,7 +8,6 @@ src/**
 .vscode/
 .git/
 .gitignore
-node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -188,10 +187,28 @@ babel.config.js
 # Source maps (keep only production ones)
 **/*.js.map
 
-# Development documentation
+# Development documentation (note: CHANGELOG.md is kept so the marketplace
+# can render release notes on the extension page).
 DEVELOPMENT.md
+DEVELOPMENT_PLAN.md
 CONTRIBUTING.md
-CHANGELOG.md
+PROJECT_STRUCTURE.md
+ROADMAP.md
+
+# Docker / CI — these are dev-only, not needed by end users
+Dockerfile
+docker-compose.yml
+
+# Claude / plugin caches
+.claude/
+.serena/
+
+# Platform monorepo (daemon/CLI/desktop ship separately, not inside the extension)
+platform/
+AGENTS.md
+
+# Development scripts (CI helpers, seed data)
+scripts/
 
 # License files (keep main LICENSE in package)
 LICENSES/

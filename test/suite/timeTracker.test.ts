@@ -175,6 +175,64 @@ suite('TimeTracker Test Suite', () => {
         await timeTracker.stop();
     });
 
+    test('Should add and clear session tags', async () => {
+        await timeTracker.start();
+
+        try {
+            const tags = await timeTracker.addTagsToCurrentSession(['Deep-Work', 'review, docs', 'review']);
+            assert.deepStrictEqual(tags.sort(), ['deep-work', 'docs', 'review']);
+
+            const sessionWithTags = timeTracker.getCurrentSession();
+            assert.ok(sessionWithTags);
+            assert.deepStrictEqual((sessionWithTags.tags || []).sort(), ['deep-work', 'docs', 'review']);
+
+            const clearedTags = await timeTracker.clearCurrentSessionTags();
+            assert.deepStrictEqual(clearedTags, []);
+
+            const clearedSession = timeTracker.getCurrentSession();
+            assert.ok(clearedSession);
+            assert.deepStrictEqual(clearedSession.tags || [], []);
+        } finally {
+            await timeTracker.stop();
+        }
+    });
+
+    test('Should start and stop a focus session', async () => {
+        await timeTracker.start();
+
+        try {
+            assert.strictEqual(timeTracker.isFocusSessionActive(), false);
+
+            await timeTracker.startFocusSession();
+            assert.strictEqual(timeTracker.isFocusSessionActive(), true);
+
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            const report = await timeTracker.stopFocusSession();
+            assert.ok(report);
+            assert.strictEqual(timeTracker.isFocusSessionActive(), false);
+
+            if (!report) {
+                assert.fail('Expected a focus session report');
+            }
+
+            assert.ok(report.totalFocusSessionMs >= 0);
+            assert.ok(report.focusActiveMs >= 0);
+            assert.ok(report.distractionCount >= 0);
+        } finally {
+            await timeTracker.stop();
+        }
+    });
+
+    test('Should return empty goal progress when no goals are configured', async () => {
+        const goalProgress = await timeTracker.getGoalProgress();
+
+        assert.strictEqual(goalProgress.global.daily.isGoalSet, false);
+        assert.strictEqual(goalProgress.global.weekly.isGoalSet, false);
+        assert.strictEqual(goalProgress.project.daily.isGoalSet, false);
+        assert.strictEqual(goalProgress.project.weekly.isGoalSet, false);
+    });
+
     test('Should handle export data', async () => {
         // Mock vscode.window.showSaveDialog
         const originalShowSaveDialog = vscode.window.showSaveDialog;

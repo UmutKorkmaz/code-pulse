@@ -1,0 +1,69 @@
+{
+  "$schema": "https://registry.codepulse.dev/v1/scanner.schema.json",
+  "id": "scn.claude-code",
+  "version": "1.4.2",
+  "displayName": "Claude Code",
+  "publisher": "code-pulse-official",
+  "trust": "official",
+  "enabled": true,
+  "minDaemon": "0.9.0",
+  "minProtocol": "5.1",
+  "capabilities": [
+    "process",
+    "log",
+    "hook"
+  ],
+  "processPatterns": [
+    "claude",
+    "Claude"
+  ],
+  "logPaths": [
+    {
+      "glob": "~/.claude/projects/**/*.jsonl",
+      "parser": "claude-jsonl-v2",
+      "watchMode": "tail"
+    },
+    {
+      "glob": "~/.claude/metrics/costs.jsonl",
+      "parser": "claude-jsonl-v2",
+      "watchMode": "tail"
+    }
+  ],
+  "hookInstaller": {
+    "configPath": "~/.claude/settings.json",
+    "forwarder": "~/.codepulse/hooks/claude-forward.sh",
+    "events": [
+      "PreToolUse",
+      "PostToolUse",
+      "SessionStart",
+      "Stop"
+    ]
+  },
+  "tokenFields": {
+    "input": "input_tokens",
+    "output": "output_tokens",
+    "cacheRead": "cache_read_input_tokens",
+    "cacheWrite": "cache_creation_input_tokens",
+    "model": "model"
+  },
+  "fileChangeTools": [
+    "Write",
+    "Edit",
+    "MultiEdit"
+  ],
+  "allowedFields": [
+    "session_id",
+    "tool_name",
+    "duration_ms",
+    "token_counts",
+    "file_path_hash"
+  ],
+  "redactedFields": [
+    "prompt",
+    "response",
+    "tool_input.content"
+  ],
+  "contentPolicy": "metadata-only",
+  "signature": "MytzdTo+eooVjZfulOIAR58QVNroMB1ppki2QxijlE2fzdiy2r+x8jXGAUs0+wxoHMdum9o5Y7LKlPHzA90zCw==",
+  "bundleHash": "f722a2cba14cad8c6498110c27e7bd1d8cdd51ae89af5f60cb0602981b36beef"
+}

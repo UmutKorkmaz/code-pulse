@@ -20,6 +20,9 @@ export interface ProductivityMetrics {
 }
 
 export class ProductivityScorer {
+    // Matches the ConfigManager 'heartbeatInterval' default of 120 seconds.
+    private static readonly DEFAULT_HEARTBEAT_INTERVAL_MS = 2 * 60 * 1000;
+
     private languageComplexityMap: Map<string, number> = new Map([
         ['assembly', 0.95],
         ['c', 0.85],
@@ -46,7 +49,14 @@ export class ProductivityScorer {
 
     private peakProductivityHours: number[] = [9, 10, 11, 14, 15, 16]; // 9-11 AM and 2-4 PM
 
-    constructor(private databaseManager: DatabaseManager) {}
+    private readonly heartbeatIntervalMs: number;
+
+    constructor(private databaseManager: DatabaseManager, heartbeatIntervalMs?: number) {
+        this.heartbeatIntervalMs =
+            typeof heartbeatIntervalMs === 'number' && Number.isFinite(heartbeatIntervalMs) && heartbeatIntervalMs > 0
+                ? heartbeatIntervalMs
+                : ProductivityScorer.DEFAULT_HEARTBEAT_INTERVAL_MS;
+    }
 
     public async calculateSessionScore(session: CodingSession): Promise<number> {
         const metrics = await this.calculateProductivityMetrics(session);
@@ -253,8 +263,8 @@ export class ProductivityScorer {
             return 0;
         }
 
-        // Calculate focus based on heartbeat consistency
-        const expectedHeartbeats = Math.floor(session.duration / (2 * 60 * 1000)); // Every 2 minutes
+        // Calculate focus based on heartbeat consistency at the configured interval
+        const expectedHeartbeats = Math.floor(session.duration / this.heartbeatIntervalMs);
         const heartbeatRatio = Math.min(session.heartbeats / Math.max(expectedHeartbeats, 1), 1);
 
         return Math.round(heartbeatRatio * 100);

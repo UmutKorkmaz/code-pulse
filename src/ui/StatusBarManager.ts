@@ -88,13 +88,16 @@ export class StatusBarManager {
     private showActiveStatus(session: any): void {
         const duration = this.timeTracker.getLiveSessionDuration();
         const timeString = this.formatDuration(duration);
+        const isFocusSessionActive = this.timeTracker.isFocusSessionActive();
 
         // Different icons based on productivity or activity
         let icon = '$(pulse)';
-        if (session.productivityScore && session.productivityScore > 80) {
+        if (this.timeTracker.isIdle()) {
+            icon = isFocusSessionActive ? '$(watch)' : '$(circle-outline)';
+        } else if (isFocusSessionActive) {
+            icon = '$(target)';
+        } else if (session.productivityScore && session.productivityScore > 80) {
             icon = '$(flame)'; // High productivity
-        } else if (this.timeTracker.isIdle()) {
-            icon = '$(circle-outline)'; // Idle
         }
 
         this.statusBarItem.text = `${icon} ${timeString}`;
@@ -125,6 +128,10 @@ export class StatusBarManager {
         tooltip += `📁 Project: ${project}\n`;
         tooltip += `🔤 Language: ${language}\n`;
         tooltip += `📄 File: ${file}\n`;
+
+        if (this.timeTracker.isFocusSessionActive()) {
+            tooltip += `🎯 Focus Session: Active\n`;
+        }
 
         if (session.heartbeats > 0) {
             tooltip += `💓 Heartbeats: ${session.heartbeats}\n`;

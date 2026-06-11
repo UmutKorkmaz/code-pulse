@@ -1,0 +1,46 @@
+{
+  "$schema": "https://registry.codepulse.dev/v1/scanner.schema.json",
+  "id": "scn.cline",
+  "version": "1.0.0",
+  "displayName": "Cline",
+  "publisher": "code-pulse-official",
+  "trust": "official",
+  "enabled": true,
+  "minDaemon": "0.9.0",
+  "minProtocol": "5.1",
+  "capabilities": [
+    "process",
+    "log",
+    "extension"
+  ],
+  "processPatterns": [
+    "cline",
+    "Cline"
+  ],
+  "logPaths": [
+    {
+      "glob": "~/.cline/data/logs/**/*.jsonl",
+      "parser": "generic-ndjson-v1",
+      "watchMode": "tail"
+    }
+  ],
+  "tokenFields": {
+    "input": "input_tokens",
+    "output": "output_tokens",
+    "model": "model"
+  },
+  "allowedFields": [
+    "session_id",
+    "tool_name",
+    "duration_ms",
+    "token_counts"
+  ],
+  "redactedFields": [
+    "prompt",
+    "response",
+    "content"
+  ],
+  "contentPolicy": "metadata-only",
+  "signature": "Q+7IDL38cFa2/p6m2GNndl6GpQIktKefvl3Xfej5uNMu9uFGeyyyUfE6cu85tu6V4tSdWhlKiAV4eJjDYKEVDw==",
+  "bundleHash": "5af26dcda0bd125351570adbe28e9b1661767d1ebf68b0bf915be291ee43190e"
+}

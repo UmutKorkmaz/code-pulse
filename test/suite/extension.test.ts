@@ -33,10 +33,15 @@ suite('Extension Test Suite', () => {
         // Check for essential commands
         const expectedCommands = [
             'codepulse.showDashboard',
+            'codepulse.showGoals',
             'codepulse.toggleTracking',
+            'codepulse.toggleFocusSession',
             'codepulse.showStats',
             'codepulse.exportData',
-            'codepulse.resetData'
+            'codepulse.resetData',
+            'codepulse.addSessionTag',
+            'codepulse.clearSessionTags',
+            'codepulse.filterByTag'
         ];
 
         expectedCommands.forEach(cmd => {
@@ -56,6 +61,10 @@ suite('Extension Test Suite', () => {
         assert.strictEqual(config.get('heartbeatInterval'), 120);
         assert.strictEqual(config.get('idleThreshold'), 300);
         assert.strictEqual(config.get('showStatusBar'), true);
+        assert.strictEqual(config.get('sessionTags.defaultTagSet'), 'deep-work,meeting,bugfix,review,docs');
+        assert.strictEqual(config.get('goals.enabled'), true);
+        assert.strictEqual(config.get('goals.dailyMinutes'), 0);
+        assert.strictEqual(config.get('localServer.apiToken'), '');
     });
 
     test('Status bar item should be available', async () => {

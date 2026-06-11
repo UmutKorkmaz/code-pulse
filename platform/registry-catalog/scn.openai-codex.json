@@ -1,0 +1,57 @@
+{
+  "$schema": "https://registry.codepulse.dev/v1/scanner.schema.json",
+  "id": "scn.openai-codex",
+  "version": "1.2.0",
+  "displayName": "OpenAI Codex",
+  "publisher": "code-pulse-official",
+  "trust": "official",
+  "enabled": true,
+  "minDaemon": "0.9.0",
+  "minProtocol": "5.1",
+  "capabilities": [
+    "process",
+    "log",
+    "hook"
+  ],
+  "processPatterns": [
+    "codex",
+    "Codex"
+  ],
+  "logPaths": [
+    {
+      "glob": "~/.codex/archived_sessions/*.jsonl",
+      "parser": "codex-jsonl-v1",
+      "watchMode": "tail"
+    },
+    {
+      "glob": "~/.codex/sessions/**/*.jsonl",
+      "parser": "codex-jsonl-v1",
+      "watchMode": "tail"
+    }
+  ],
+  "tokenFields": {
+    "input": "input_tokens",
+    "output": "output_tokens",
+    "model": "model"
+  },
+  "fileChangeTools": [
+    "write_file",
+    "edit_file",
+    "apply_patch"
+  ],
+  "allowedFields": [
+    "session_id",
+    "tool_name",
+    "duration_ms",
+    "token_counts",
+    "file_path_hash"
+  ],
+  "redactedFields": [
+    "prompt",
+    "response",
+    "content"
+  ],
+  "contentPolicy": "metadata-only",
+  "signature": "kGJLosrqjQdufnwGdrZIScfJyVCh3uJBerwQtMB2sghN4aoxO7RG4ANqlKLA+a9+cDU9MWBpmx8RKi2GuUlzAg==",
+  "bundleHash": "a5e96c999ea216bda341f8ad2638c06354660157a57e8be921fa546ffb7ea841"
+}

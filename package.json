@@ -2,7 +2,7 @@
   "name": "codepulse",
   "displayName": "Code Pulse",
   "description": "Advanced time tracking and productivity analytics for developers. Track coding time, analyze productivity patterns, and gain insights into your development workflow.",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "publisher": "codepulse",
   "engines": {
     "vscode": "^1.74.0"
@@ -37,6 +37,11 @@
         "category": "Code Pulse"
       },
       {
+        "command": "codepulse.showGoals",
+        "title": "Show Goals",
+        "category": "Code Pulse"
+      },
+      {
         "command": "codepulse.toggleTracking",
         "title": "Toggle Time Tracking",
         "category": "Code Pulse"
@@ -64,6 +69,31 @@
       {
         "command": "codepulse.testSync",
         "title": "Test Sync Connection",
+        "category": "Code Pulse"
+      },
+      {
+        "command": "codepulse.addSessionTag",
+        "title": "Add Session Tag",
+        "category": "Code Pulse"
+      },
+      {
+        "command": "codepulse.clearSessionTags",
+        "title": "Clear Session Tags",
+        "category": "Code Pulse"
+      },
+      {
+        "command": "codepulse.filterByTag",
+        "title": "Filter Dashboard by Tag",
+        "category": "Code Pulse"
+      },
+      {
+        "command": "codepulse.toggleFocusSession",
+        "title": "Toggle Focus Session",
+        "category": "Code Pulse"
+      },
+      {
+        "command": "codepulse.copyApiToken",
+        "title": "Copy Local API Token",
         "category": "Code Pulse"
       }
     ],
@@ -117,7 +147,8 @@
         "codepulse.cloudSync.apiKey": {
           "type": "string",
           "default": "",
-          "description": "Cloud sync API key"
+          "description": "Cloud sync API key",
+          "isSecret": true
         },
         "codepulse.cloudSync.includeFilenames": {
           "type": "boolean",
@@ -180,6 +211,41 @@
           "default": false,
           "description": "Allow the local API server to listen on non-loopback interfaces"
         },
+        "codepulse.localServer.apiToken": {
+          "type": "string",
+          "default": "",
+          "description": "Optional bearer token required for external API access",
+          "isSecret": true
+        },
+        "codepulse.daemon.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Connect to the Code Pulse daemon (codepulse-d) and forward events instead of embedded-only mode"
+        },
+        "codepulse.daemon.host": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Daemon HTTP host (loopback by default)"
+        },
+        "codepulse.daemon.port": {
+          "type": "number",
+          "default": 7842,
+          "minimum": 1024,
+          "maximum": 65535,
+          "description": "Daemon HTTP port"
+        },
+        "codepulse.daemon.token": {
+          "type": "string",
+          "default": "",
+          "description": "Optional bearer token for daemon HTTP access (falls back to ~/.codepulse/token)",
+          "isSecret": true
+        },
+        "codepulse.daemon.timeoutMs": {
+          "type": "number",
+          "default": 10000,
+          "minimum": 1000,
+          "description": "Daemon HTTP request timeout in milliseconds"
+        },
         "codepulse.privacy.trackFilenames": {
           "type": "boolean",
           "default": true,
@@ -202,7 +268,14 @@
         },
         "codepulse.sync.provider": {
           "type": "string",
-          "enum": ["custom", "webdav", "github-gist", "google-drive", "onedrive", "dropbox"],
+          "enum": [
+            "custom",
+            "webdav",
+            "github-gist",
+            "google-drive",
+            "onedrive",
+            "dropbox"
+          ],
           "default": "github-gist",
           "description": "Cloud storage provider for sync",
           "enumDescriptions": [
@@ -228,7 +301,8 @@
         "codepulse.sync.custom.apiKey": {
           "type": "string",
           "default": "",
-          "description": "[Custom REST] Bearer token for authentication"
+          "description": "[Custom REST] Bearer token for authentication",
+          "isSecret": true
         },
         "codepulse.sync.webdav.url": {
           "type": "string",
@@ -243,7 +317,8 @@
         "codepulse.sync.webdav.password": {
           "type": "string",
           "default": "",
-          "description": "[WebDAV] Password or app-specific token"
+          "description": "[WebDAV] Password or app-specific token",
+          "isSecret": true
         },
         "codepulse.sync.webdav.path": {
           "type": "string",
@@ -253,7 +328,8 @@
         "codepulse.sync.googleDrive.accessToken": {
           "type": "string",
           "default": "",
-          "description": "[Google Drive] OAuth 2.0 access token (generate at https://developers.google.com/oauthplayground)"
+          "description": "[Google Drive] OAuth 2.0 access token (generate at https://developers.google.com/oauthplayground)",
+          "isSecret": true
         },
         "codepulse.sync.googleDrive.fileId": {
           "type": "string",
@@ -263,7 +339,8 @@
         "codepulse.sync.oneDrive.accessToken": {
           "type": "string",
           "default": "",
-          "description": "[OneDrive] Microsoft Graph access token with Files.ReadWrite scope"
+          "description": "[OneDrive] Microsoft Graph access token with Files.ReadWrite scope",
+          "isSecret": true
         },
         "codepulse.sync.oneDrive.filePath": {
           "type": "string",
@@ -273,7 +350,8 @@
         "codepulse.sync.dropbox.accessToken": {
           "type": "string",
           "default": "",
-          "description": "[Dropbox] Personal access token (https://www.dropbox.com/developers/apps)"
+          "description": "[Dropbox] Personal access token (https://www.dropbox.com/developers/apps)",
+          "isSecret": true
         },
         "codepulse.sync.dropbox.filePath": {
           "type": "string",
@@ -311,6 +389,54 @@
           "type": "boolean",
           "default": true,
           "description": "Show the first-run welcome message when the extension activates"
+        },
+        "codepulse.sessionTags.defaultTagSet": {
+          "type": "string",
+          "default": "deep-work,meeting,bugfix,review,docs",
+          "description": "Comma-separated default session tags shown as suggestions for quick tag entry"
+        },
+        "codepulse.goals.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable daily and weekly goal tracking"
+        },
+        "codepulse.goals.dailyMinutes": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Daily global goal in minutes"
+        },
+        "codepulse.goals.weeklyMinutes": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Weekly global goal in minutes"
+        },
+        "codepulse.goals.milestoneNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show milestone and completion notifications for goals"
+        },
+        "codepulse.goals.projectGoals": {
+          "type": "object",
+          "default": {},
+          "description": "Per-project goals keyed by project name, each with optional dailyMinutes and weeklyMinutes",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "dailyMinutes": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Project-specific daily goal in minutes"
+              },
+              "weeklyMinutes": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Project-specific weekly goal in minutes"
+              }
+            },
+            "additionalProperties": false
+          }
         }
       }
     },
@@ -348,12 +474,20 @@
         "command": "codepulse.showStats",
         "key": "ctrl+shift+alt+s",
         "mac": "cmd+shift+alt+s"
+      },
+      {
+        "command": "codepulse.toggleFocusSession",
+        "key": "ctrl+shift+alt+f",
+        "mac": "cmd+shift+alt+f"
       }
     ],
     "menus": {
       "commandPalette": [
         {
           "command": "codepulse.showDashboard"
+        },
+        {
+          "command": "codepulse.showGoals"
         },
         {
           "command": "codepulse.toggleTracking"
@@ -372,6 +506,18 @@
         },
         {
           "command": "codepulse.testSync"
+        },
+        {
+          "command": "codepulse.addSessionTag"
+        },
+        {
+          "command": "codepulse.clearSessionTags"
+        },
+        {
+          "command": "codepulse.filterByTag"
+        },
+        {
+          "command": "codepulse.toggleFocusSession"
         }
       ]
     }
@@ -388,7 +534,13 @@
     "package": "vsce package",
     "deploy": "vsce publish",
     "ci": "npm run lint && npx tsc --noEmit && npm run compile",
-    "ci:docker": "./scripts/ci-local.sh"
+    "ci:docker": "./scripts/ci-local.sh",
+    "test:platform": "npm test --prefix platform"
+  },
+  "overrides": {
+    "axios": {
+      "follow-redirects": "^1.15.12"
+    }
   },
   "devDependencies": {
     "@types/mocha": "^10.0.1",

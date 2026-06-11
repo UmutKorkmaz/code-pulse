@@ -43,6 +43,7 @@ suite('ConfigManager Test Suite', () => {
         assert.ok(config.localServer);
         assert.strictEqual(typeof config.localServer.enabled, 'boolean');
         assert.strictEqual(typeof config.localServer.port, 'number');
+        assert.strictEqual(typeof config.localServer.apiToken, 'string');
 
         assert.ok(config.privacy);
         assert.strictEqual(typeof config.privacy.trackFilenames, 'boolean');
@@ -51,6 +52,15 @@ suite('ConfigManager Test Suite', () => {
         assert.ok(config.ui);
         assert.strictEqual(typeof config.ui.theme, 'string');
         assert.strictEqual(typeof config.ui.compactMode, 'boolean');
+
+        assert.ok(config.sessionTags);
+        assert.strictEqual(typeof config.sessionTags.defaultTagSet, 'string');
+
+        assert.ok(config.goals);
+        assert.strictEqual(typeof config.goals.enabled, 'boolean');
+        assert.strictEqual(typeof config.goals.dailyMinutes, 'number');
+        assert.strictEqual(typeof config.goals.weeklyMinutes, 'number');
+        assert.ok(typeof config.goals.projectGoals === 'object');
     });
 
     test('Should validate configuration', () => {
@@ -88,6 +98,22 @@ suite('ConfigManager Test Suite', () => {
         assert.ok(invalidResult.errors.some(err => err.includes('Idle threshold')));
         assert.ok(invalidResult.errors.some(err => err.includes('API URL')));
         assert.ok(invalidResult.errors.some(err => err.includes('API key')));
+
+        const invalidGoals = configManager.validateConfig({
+            goals: {
+                enabled: true,
+                dailyMinutes: 120,
+                weeklyMinutes: 600,
+                milestoneNotifications: true,
+                projectGoals: {
+                    testProject: {
+                        dailyMinutes: -1
+                    }
+                }
+            }
+        });
+        assert.strictEqual(invalidGoals.valid, false);
+        assert.ok(invalidGoals.errors.some(err => err.includes('Invalid dailyMinutes for project goal "testProject"')));
     });
 
     test('Should check if tracking is enabled', () => {
@@ -144,13 +170,7 @@ suite('ConfigManager Test Suite', () => {
     });
 
     test('Should support configuration listeners', () => {
-        let listenerCalled = false;
-        let receivedConfig: any = null;
-
-        const listener = (config: any) => {
-            listenerCalled = true;
-            receivedConfig = config;
-        };
+        const listener = (_config: CodePulseConfig) => undefined;
 
         configManager.addChangeListener(listener);
 

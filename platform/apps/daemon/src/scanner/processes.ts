@@ -1,0 +1,91 @@
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+
+const execFileAsync = promisify(execFile);
+
+const SECONDS_PER_MINUTE = 60;
+const SECONDS_PER_HOUR = 60 * SECONDS_PER_MINUTE;
+const SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR;
+
+/** One running process as reported by `ps -eo pid=,etime=,comm=`. */
+export interface ProcessEntry {
+    pid: number;
+    /** Command name/path — may contain spaces (e.g. app bundle paths). */
+    comm: string;
+    /** Elapsed run time in seconds (0 when etime is unparseable). */
+    etimeSeconds: number;
+}
+
+/**
+ * List running process command names (comm) for scanner matching.
+ */
+export async function listProcessNames(): Promise<string[]> {
+    try {
+        const { stdout } = await execFileAsync('ps', ['-eo', 'comm='], {
+            maxBuffer: 8 * 1024 * 1024
+        });
+        return stdout
+            .split('\n')
+            .map(line => line.trim())
+            .filter(Boolean);
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Lists running processes with pid + uptime via `ps -eo pid=,etime=,comm=`.
+ * Returns [] on failure (mirrors listProcessNames) so a transient ps error
+ * never throws into the poll loop.
+ */
+export async function listProcessEntries(): Promise<ProcessEntry[]> {
+    try {
+        const { stdout } = await execFileAsync('ps', ['-eo', 'pid=,etime=,comm='], {
+            maxBuffer: 8 * 1024 * 1024
+        });
+        return parseProcessTable(stdout);
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Parses `ps -eo pid=,etime=,comm=` output. pid and etime are single
+ * whitespace-delimited columns; everything after them is the comm (which may
+ * itself contain spaces). Malformed lines are skipped.
+ */
+export function parseProcessTable(stdout: string): ProcessEntry[] {
+    const entries: ProcessEntry[] = [];
+    for (const line of stdout.split('\n')) {
+        const match = line.trim().match(/^(\d+)\s+(\S+)\s+(.+)$/);
+        if (!match) {
+            continue;
+        }
+        const pid = Number.parseInt(match[1], 10);
+        const comm = match[3].trim();
+        if (!Number.isFinite(pid) || !comm) {
+            continue;
+        }
+        entries.push({ pid, comm, etimeSeconds: parseEtimeSeconds(match[2]) });
+    }
+    return entries;
+}
+
+/**
+ * Parses a ps `etime` value — `[[dd-]hh:]mm:ss` (e.g. "05:30", "1:02:03",
+ * "2-11:30:00") — into seconds. Unparseable input yields 0 so a weird etime
+ * degrades to "started just now" instead of poisoning the poll.
+ */
+export function parseEtimeSeconds(etime: string): number {
+    const match = etime.trim().match(/^(?:(\d+)-)?(?:(\d+):)?(\d+):(\d+)(?:\.\d+)?$/);
+    if (!match) {
+        return 0;
+    }
+    const [, days, hours, minutes, seconds] = match;
+    return (
+        (days ? Number.parseInt(days, 10) * SECONDS_PER_DAY : 0) +
+        (hours ? Number.parseInt(hours, 10) * SECONDS_PER_HOUR : 0) +
+        Number.parseInt(minutes, 10) * SECONDS_PER_MINUTE +
+        Number.parseInt(seconds, 10)
+    );
+}

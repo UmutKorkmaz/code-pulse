@@ -19,6 +19,8 @@ export class Logger {
     private logBuffer: LogEntry[] = [];
     private bufferFlushInterval = 5000; // 5 seconds
     private flushTimer?: NodeJS.Timeout;
+    // Serializes async file writes so timer flushes never interleave appends.
+    private writeChain: Promise<void> = Promise.resolve();
 
     constructor(logDirectoryPath: string, logLevel: LogLevel = 'info') {
         this.logFilePath = logDirectoryPath.endsWith('.log')
@@ -172,8 +174,32 @@ export class Logger {
 
     private startBufferFlushing(): void {
         this.flushTimer = setInterval(() => {
-            this.flushBuffer();
+            this.flushBufferAsync();
         }, this.bufferFlushInterval);
+    }
+
+    /**
+     * Timer-driven flush: non-blocking fs.promises writes chained one after the
+     * other so appends never interleave. Error-level and dispose() flushes stay
+     * on the synchronous path (flushBuffer) for crash/shutdown safety.
+     */
+    private flushBufferAsync(): void {
+        if (this.logBuffer.length === 0) {
+            return;
+        }
+
+        const entries = [...this.logBuffer];
+        this.logBuffer = [];
+
+        this.writeChain = this.writeChain.then(async () => {
+            try {
+                await this.writeLogEntriesAsync(entries);
+            } catch (error) {
+                console.error('Failed to write log entries:', error);
+                // Return entries to buffer for retry
+                this.logBuffer.unshift(...entries);
+            }
+        });
     }
 
     private flushBuffer(): void {
@@ -193,9 +219,31 @@ export class Logger {
         }
     }
 
+    private buildLogData(entries: LogEntry[]): string {
+        return entries.map(entry => this.formatLogEntry(entry)).join('\n') + '\n';
+    }
+
+    private async writeLogEntriesAsync(entries: LogEntry[]): Promise<void> {
+        const logData = this.buildLogData(entries);
+
+        try {
+            // Check if log rotation is needed
+            const stats = await fs.promises.stat(this.logFilePath).catch(() => null);
+            if (stats && stats.size > this.maxLogFileSize) {
+                await this.rotateLogFileAsync();
+            }
+
+            // Append to log file
+            await fs.promises.appendFile(this.logFilePath, logData, 'utf8');
+
+        } catch (error) {
+            console.error('Failed to write to log file:', error);
+            throw error;
+        }
+    }
+
     private writeLogEntries(entries: LogEntry[]): void {
-        const logLines = entries.map(entry => this.formatLogEntry(entry));
-        const logData = logLines.join('\n') + '\n';
+        const logData = this.buildLogData(entries);
 
         try {
             // Check if log rotation is needed
@@ -236,6 +284,38 @@ export class Logger {
         }
 
         return logLine;
+    }
+
+    private async rotateLogFileAsync(): Promise<void> {
+        try {
+            const logDir = path.dirname(this.logFilePath);
+            const logName = path.basename(this.logFilePath, path.extname(this.logFilePath));
+            const logExt = path.extname(this.logFilePath);
+
+            // Rotate existing files
+            for (let i = this.maxLogFiles - 1; i >= 1; i--) {
+                const currentFile = path.join(logDir, `${logName}.${i}${logExt}`);
+                const nextFile = path.join(logDir, `${logName}.${i + 1}${logExt}`);
+
+                const exists = await fs.promises.stat(currentFile).then(() => true, () => false);
+                if (exists) {
+                    if (i === this.maxLogFiles - 1) {
+                        // Delete the oldest file
+                        await fs.promises.unlink(currentFile);
+                    } else {
+                        // Rename to next number
+                        await fs.promises.rename(currentFile, nextFile);
+                    }
+                }
+            }
+
+            // Rename current log file
+            const rotatedFile = path.join(logDir, `${logName}.1${logExt}`);
+            await fs.promises.rename(this.logFilePath, rotatedFile);
+
+        } catch (error) {
+            console.error('Failed to rotate log file:', error);
+        }
     }
 
     private rotateLogFile(): void {

@@ -1,0 +1,25 @@
+{
+  "name": "codepulse-platform",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "build:cli": "npm run build -w @codepulse/cli",
+    "build:daemon": "npm run build -w @codepulse/daemon",
+    "build:mcp": "npm run build -w @codepulse/mcp-server",
+    "build:desktop": "npm run build -w @codepulse/desktop",
+    "test": "npm run build -w @codepulse/protocol -w @codepulse/registry -w @codepulse/core -w @codepulse/daemon && tsc -p tests/tsconfig.json && mocha"
+  },
+  "devDependencies": {
+    "@codepulse/protocol": "*",
+    "@codepulse/registry": "*",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.11.0",
+    "mocha": "^10.8.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0"
+  }
+}

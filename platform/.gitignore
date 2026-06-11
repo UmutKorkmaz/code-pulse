@@ -1,0 +1,2 @@
+# Local dev manifest signing key (never commit)
+scripts/.signing-key.pem

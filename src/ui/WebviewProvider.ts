@@ -3,18 +3,79 @@ import * as path from 'path';
 import { ConfigManager } from '../utils/ConfigManager';
 import { TimeTracker } from '../tracker/TimeTracker';
 import { DatabaseManager } from '../storage/DatabaseManager';
+import { DaemonClient } from '../client/DaemonClient';
+import {
+    TerminalAiDetector,
+    TERMINAL_RUNNING_GRACE_POLLS,
+    TERMINAL_SCAN_INTERVAL_MS
+} from '../detectors/TerminalAiDetector';
+import { AiExtensionDetector, AiExtensionInfo } from '../detectors/AiExtensionDetector';
+
+export type AiToolStatus = 'terminal' | 'running' | 'idle';
+
+/**
+ * Recency window for treating a daemon AI session as "running now". An open
+ * session (isActive) whose lastActivityAt is older than this is shown as idle,
+ * not running — mirrors the desktop's findRunningTools so a detection-only
+ * session left open on the daemon does not report 'running' forever.
+ */
+const RUNNING_NOW_WINDOW_MS = 10 * 60 * 1000;
+
+/** Per-tool row rendered by the dashboard's AI Tools card. Time fields are milliseconds. */
+export interface AiToolDashboardRow {
+    tool: string;
+    status: AiToolStatus;
+    activeMsToday: number;
+    runMsToday: number;
+    inputTokens: number;
+    outputTokens: number;
+}
+
+export interface AiDashboardData {
+    tools: AiToolDashboardRow[];
+    extensions: AiExtensionInfo[];
+    daemonAvailable: boolean;
+}
+
+/** Live AI data sources wired in by extension.ts whenever daemon integration is enabled. */
+export interface AiDashboardSources {
+    daemonClient?: DaemonClient;
+    terminalDetector?: TerminalAiDetector;
+    extensionDetector?: AiExtensionDetector;
+}
 
 export class WebviewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'codepulse.stats';
     private _view?: vscode.WebviewView;
     private _dashboardPanels: Set<vscode.WebviewPanel> = new Set();
+    private activeTagFilter: string | null = null;
+    private aiSources: AiDashboardSources | undefined;
 
     constructor(
         private context: vscode.ExtensionContext,
         private timeTracker: TimeTracker,
         private databaseManager: DatabaseManager,
         private configManager: ConfigManager
-    ) {}
+    ) {
+        this.registerCommands();
+    }
+
+    private registerCommands() {
+        this.context.subscriptions.push(
+            vscode.commands.registerCommand('codepulse.addSessionTag', async () => {
+                await this.executeAddSessionTagCommand();
+            }),
+            vscode.commands.registerCommand('codepulse.clearSessionTags', async () => {
+                await this.executeClearSessionTagsCommand();
+            }),
+            vscode.commands.registerCommand('codepulse.filterByTag', async () => {
+                await this.executeFilterByTagCommand();
+            }),
+            vscode.commands.registerCommand('codepulse.showGoals', async () => {
+                await this.showDashboard();
+            })
+        );
+    }
 
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
@@ -99,6 +160,11 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         await this.broadcastToDashboards();
     }
 
+    /** Called by extension.ts when daemon integration is (re)wired or disabled. */
+    public setAiSources(sources: AiDashboardSources | undefined): void {
+        this.aiSources = sources;
+    }
+
     private async broadcastToDashboards(): Promise<void> {
         const panels = Array.from(this._dashboardPanels);
         await Promise.all(panels.map(p => this.loadFullDashboardData(p.webview)));
@@ -136,6 +202,38 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
 
             case 'refreshData':
                 await this.refreshData();
+                break;
+
+            case 'addSessionTag':
+                if (Array.isArray(message.tags)) {
+                    try {
+                        await this.timeTracker.addTagsToCurrentSession(message.tags);
+                        await this.refresh();
+                    } catch (error) {
+                        console.error('Failed to add session tags:', error);
+                        const err = error instanceof Error ? error.message : 'Failed to add tags';
+                        void vscode.window.showErrorMessage(`Code Pulse: ${err}`);
+                    }
+                }
+                break;
+
+            case 'clearSessionTags':
+                try {
+                    await this.timeTracker.clearCurrentSessionTags();
+                    await this.refresh();
+                } catch (error) {
+                    console.error('Failed to clear session tags:', error);
+                    const err = error instanceof Error ? error.message : 'Failed to clear tags';
+                    void vscode.window.showErrorMessage(`Code Pulse: ${err}`);
+                }
+                break;
+
+            case 'filterByTag':
+                this.applyTagFilter(message.tag);
+                break;
+
+            case 'setLocalTagFilter':
+                this.applyTagFilter(message.data?.tag);
                 break;
 
             case 'getDateRangeData':
@@ -220,6 +318,7 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
             const languageStats = this.configManager.get('analytics.enableLanguageStats', true)
                 ? await this.databaseManager.getTotalTimeByLanguage(startDate, endDate)
                 : {};
+            const goalProgress = await this.timeTracker.getGoalProgress();
             const settings = this.getWebviewSettings();
 
             webview.postMessage({
@@ -232,14 +331,107 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
                     activities,
                     projectStats,
                     languageStats,
+                    activeTagFilter: this.activeTagFilter,
                     isTracking: currentSession?.isActive || false,
                     isIdle: this.timeTracker.isIdle(),
+                    goalProgress,
                     settings
                 }
             });
+
+            // AI data rides the same refresh cycle but is posted separately so a
+            // slow/unreachable daemon never delays the main dashboard payload.
+            void this.sendAiData(webview);
         } catch (error) {
             console.error('Failed to load full dashboard data:', error);
         }
+    }
+
+    private async sendAiData(webview: vscode.Webview): Promise<void> {
+        try {
+            const data = await this.buildAiDashboardData();
+            webview.postMessage({ command: 'updateAiData', data });
+        } catch (error) {
+            console.error('Failed to load AI tool data:', error);
+        }
+    }
+
+    /**
+     * Merges today's daemon aggregates (/v1/ai/activity + /v1/ai/sessions) with
+     * the local terminal/extension detector state. Daemon-absent, the card still
+     * shows locally detected tools with an offline hint (daemonAvailable=false).
+     */
+    private async buildAiDashboardData(): Promise<AiDashboardData> {
+        const daemonClient = this.aiSources?.daemonClient;
+        const daemonAvailable = daemonClient?.isDaemonMode() ?? false;
+        const byTool = new Map<string, AiToolDashboardRow>();
+        const runningOnDaemon = new Set<string>();
+
+        if (daemonClient && daemonAvailable) {
+            const [activity, sessions] = await Promise.all([
+                daemonClient.getAiActivity(),
+                daemonClient.getAiSessions()
+            ]);
+
+            const today = formatLocalDay(new Date());
+            for (const row of activity.activity ?? []) {
+                if (!row.tool || row.day !== today) {
+                    continue;
+                }
+
+                const entry = byTool.get(row.tool) ?? emptyAiToolRow(row.tool);
+                byTool.set(row.tool, {
+                    ...entry,
+                    activeMsToday: entry.activeMsToday + (row.activeMs ?? 0),
+                    runMsToday: entry.runMsToday + (row.runMs ?? 0),
+                    inputTokens: entry.inputTokens + (row.inputTokens ?? 0),
+                    outputTokens: entry.outputTokens + (row.outputTokens ?? 0)
+                });
+            }
+
+            const nowMs = Date.now();
+            for (const session of sessions.sessions ?? []) {
+                if (!session.tool || !session.isActive) {
+                    continue;
+                }
+                const lastActivityMs = Date.parse(session.lastActivityAt ?? '');
+                if (Number.isFinite(lastActivityMs) && nowMs - lastActivityMs <= RUNNING_NOW_WINDOW_MS) {
+                    runningOnDaemon.add(session.tool);
+                }
+            }
+        }
+
+        // Local terminal detections keep the card alive daemon-absent and drive
+        // the 'terminal' status; entries older than the 2-poll grace are pruned
+        // by the detector itself.
+        const now = Date.now();
+        const terminalGraceMs = TERMINAL_SCAN_INTERVAL_MS * TERMINAL_RUNNING_GRACE_POLLS;
+        const seenInTerminal = new Set<string>();
+        for (const state of this.aiSources?.terminalDetector?.getRunningTools() ?? []) {
+            if (now - state.lastSeenAt <= terminalGraceMs) {
+                seenInTerminal.add(state.tool);
+            }
+            if (!byTool.has(state.tool)) {
+                byTool.set(state.tool, emptyAiToolRow(state.tool));
+            }
+        }
+
+        const tools = Array.from(byTool.values())
+            .map(row => ({
+                ...row,
+                status: seenInTerminal.has(row.tool)
+                    ? ('terminal' as AiToolStatus)
+                    : runningOnDaemon.has(row.tool)
+                        ? ('running' as AiToolStatus)
+                        : ('idle' as AiToolStatus)
+            }))
+            .sort((a, b) => b.activeMsToday - a.activeMsToday || a.tool.localeCompare(b.tool));
+
+        return {
+            tools,
+            extensions: this.aiSources?.extensionDetector?.getInventory() ?? [],
+            daemonAvailable
+        };
     }
 
     private async getDateRangeData(startDate: string, endDate: string, webview?: vscode.Webview) {
@@ -265,7 +457,8 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
                         activities,
                         projectStats,
                         languageStats,
-                        dateRange: { startDate, endDate }
+                        dateRange: { startDate, endDate },
+                        tagFilter: this.activeTagFilter
                     }
                 });
             }
@@ -332,14 +525,102 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         showProjectStats: boolean;
         showLanguageStats: boolean;
         showActivityTracking: boolean;
+        defaultTagSet: string;
     } {
         return {
             theme: this.configManager.getTheme(),
             compactMode: this.configManager.get('ui.compactMode', false),
             showProjectStats: this.configManager.get('analytics.enableProjectStats', true),
             showLanguageStats: this.configManager.get('analytics.enableLanguageStats', true),
-            showActivityTracking: this.configManager.get('analytics.enableActivityTracking', true)
+            showActivityTracking: this.configManager.get('analytics.enableActivityTracking', true),
+            defaultTagSet: this.configManager.get(
+                'sessionTags.defaultTagSet',
+                'deep-work,meeting,bugfix,review,docs'
+            )
         };
+    }
+
+    private applyTagFilter(tag: string | null | undefined): void {
+        if (typeof tag === 'string') {
+            const normalized = tag.trim().toLowerCase();
+            this.activeTagFilter = normalized.length ? normalized : null;
+        } else {
+            this.activeTagFilter = null;
+        }
+
+        void this.broadcastTagFilterState();
+        void this.refresh();
+    }
+
+    private async broadcastTagFilterState(): Promise<void> {
+        const message = { command: 'setLocalTagFilter', data: { tag: this.activeTagFilter } };
+
+        if (this._view) {
+            await this._view.webview.postMessage(message);
+        }
+
+        await Promise.all(Array.from(this._dashboardPanels).map(panel => panel.webview.postMessage(message)));
+    }
+
+    private async executeAddSessionTagCommand(): Promise<void> {
+        const rawTagInput = await vscode.window.showInputBox({
+            prompt: 'Add tags to current session (comma separated)',
+            placeHolder: 'deep-work, meeting, bugfix, review, docs',
+            value: this.configManager.get('sessionTags.defaultTagSet', 'deep-work,meeting,bugfix,review,docs')
+        });
+
+        if (rawTagInput === undefined) {
+            return;
+        }
+
+        const tags = this.parseTagInput(rawTagInput);
+        if (tags.length === 0) {
+            void vscode.window.showWarningMessage('Code Pulse: No valid tag provided.');
+            return;
+        }
+
+        try {
+            await this.timeTracker.addTagsToCurrentSession(tags);
+            await this.refresh();
+            void vscode.window.showInformationMessage(`Code Pulse: Added tags: ${tags.join(', ')}`);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to add tags';
+            void vscode.window.showErrorMessage(`Code Pulse: ${message}`);
+        }
+    }
+
+    private async executeClearSessionTagsCommand(): Promise<void> {
+        try {
+            await this.timeTracker.clearCurrentSessionTags();
+            await this.refresh();
+            void vscode.window.showInformationMessage('Code Pulse: Cleared session tags.');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to clear tags';
+            void vscode.window.showErrorMessage(`Code Pulse: ${message}`);
+        }
+    }
+
+    private async executeFilterByTagCommand(): Promise<void> {
+        await this.showDashboard();
+
+        const rawTagInput = await vscode.window.showInputBox({
+            prompt: 'Filter dashboard sessions and activities by tag',
+            placeHolder: 'Type a tag to filter (leave blank to clear)'
+        });
+
+        if (rawTagInput === undefined) {
+            return;
+        }
+
+        this.applyTagFilter(rawTagInput || null);
+    }
+
+    private parseTagInput(raw: string): string[] {
+        return raw
+            .split(',')
+            .map(tag => tag.trim().toLowerCase())
+            .filter(tag => tag.length > 0)
+            .filter((tag, index, tags) => tags.indexOf(tag) === index);
     }
 
     private getBodyAttributes(): string {
@@ -356,12 +637,14 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         const scriptChart = webview.asWebviewUri(
             vscode.Uri.joinPath(this.context.extensionUri, 'webview', 'chart.min.js')
         );
+        const cspSource = webview.cspSource;
 
         return `<!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${cspSource} data:; script-src ${cspSource}; style-src ${cspSource} 'unsafe-inline'; connect-src ${cspSource}; font-src ${cspSource}; frame-ancestors 'none'; base-uri 'none';">
             <link href="${styleVscode}" rel="stylesheet">
             <link href="${styleMain}" rel="stylesheet">
             <title>Code Pulse</title>
@@ -442,12 +725,14 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         const scriptChart = webview.asWebviewUri(
             vscode.Uri.joinPath(this.context.extensionUri, 'webview', 'chart.min.js')
         );
+        const cspSource = webview.cspSource;
 
         return `<!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${cspSource} data:; script-src ${cspSource}; style-src ${cspSource} 'unsafe-inline'; connect-src ${cspSource}; font-src ${cspSource}; frame-ancestors 'none'; base-uri 'none';">
             <link href="${styleVscode}" rel="stylesheet">
             <link href="${styleDashboard}" rel="stylesheet">
             <title>Code Pulse Dashboard</title>
@@ -501,6 +786,39 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
                             </div>
                         </div>
 
+                        <div class="card goals-card">
+                            <h2 class="card-title">Goal Progress</h2>
+                            <div class="goal-overview" id="goalOverview">
+                                <div class="goal-group">
+                                    <div class="goal-group-title">Global</div>
+                                    <div class="goal-metric" id="globalDailyGoal">
+                                        <div class="goal-metric-label">Daily</div>
+                                        <div class="goal-metric-value">Not set</div>
+                                        <div class="goal-metric-detail">—</div>
+                                    </div>
+                                    <div class="goal-metric" id="globalWeeklyGoal">
+                                        <div class="goal-metric-label">Weekly</div>
+                                        <div class="goal-metric-value">Not set</div>
+                                        <div class="goal-metric-detail">—</div>
+                                    </div>
+                                </div>
+                                <div class="goal-group">
+                                    <div class="goal-group-title">Project</div>
+                                    <div class="goal-group-subtitle" id="goalProjectName">No project selected</div>
+                                    <div class="goal-metric" id="projectDailyGoal">
+                                        <div class="goal-metric-label">Daily</div>
+                                        <div class="goal-metric-value">Not set</div>
+                                        <div class="goal-metric-detail">—</div>
+                                    </div>
+                                    <div class="goal-metric" id="projectWeeklyGoal">
+                                        <div class="goal-metric-label">Weekly</div>
+                                        <div class="goal-metric-value">Not set</div>
+                                        <div class="goal-metric-detail">—</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Weekly Chart Card -->
                         <div class="card chart-card">
                             <h2 class="card-title">Weekly Overview</h2>
@@ -531,6 +849,21 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
                             </div>
                         </div>
 
+                        <!-- AI Tools Card -->
+                        <div class="card breakdown-card ai-tools-card">
+                            <h2 class="card-title">AI Tools (Today)</h2>
+                            <div class="ai-offline-hint" id="aiOfflineHint" hidden>
+                                Daemon offline — showing local detections only
+                            </div>
+                            <div class="breakdown-list ai-tools-list" id="aiToolsList">
+                                <div class="loading-cell">Loading…</div>
+                            </div>
+                            <div class="ai-extensions-title">AI Extensions</div>
+                            <div class="breakdown-list ai-extensions-list" id="aiExtensionsList">
+                                <div class="loading-cell">Loading…</div>
+                            </div>
+                        </div>
+
                         <!-- Sessions Table Card -->
                         <div class="card sessions-card">
                             <div class="sessions-header">
@@ -539,6 +872,9 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
                             </div>
                             <div class="sessions-filters">
                                 <input type="search" id="sessionSearch" class="filter-input" placeholder="Search file, branch…" />
+                                <select id="sessionTagFilter" class="filter-input">
+                                    <option value="">All tags</option>
+                                </select>
                                 <select id="sessionProjectFilter" class="filter-input">
                                     <option value="">All projects</option>
                                 </select>
@@ -554,6 +890,16 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
                                 </select>
                                 <button class="btn btn-secondary" id="sessionClearBtn" type="button">Clear</button>
                             </div>
+                            <div class="quick-command-row">
+                                <input
+                                    type="search"
+                                    id="quickCommandInput"
+                                    class="filter-input"
+                                    placeholder="Quick command: /tag deep-work,bugfix | /filter meeting"
+                                />
+                                <button class="btn btn-secondary" id="quickCommandBtn" type="button">Run</button>
+                                <span class="session-filter-hint">Quick commands: /tag, /filter, /clear-tags</span>
+                            </div>
                             <div class="sessions-table-wrapper">
                                 <table class="sessions-table" id="sessionsTable">
                                     <thead>
@@ -562,13 +908,14 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
                                             <th data-sort="project" class="sortable">Project <span class="sort-arrow"></span></th>
                                             <th data-sort="language" class="sortable">Lang <span class="sort-arrow"></span></th>
                                             <th data-sort="file">File</th>
+                                            <th data-sort="tags">Tags</th>
                                             <th data-sort="branch">Branch</th>
                                             <th data-sort="duration" class="sortable num">Time <span class="sort-arrow"></span></th>
                                             <th data-sort="productivityScore" class="sortable num">Score <span class="sort-arrow"></span></th>
                                         </tr>
                                     </thead>
                                     <tbody id="sessionsTableBody">
-                                        <tr><td colspan="7" class="loading-cell">Loading…</td></tr>
+                                        <tr><td colspan="8" class="loading-cell">Loading…</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -598,4 +945,23 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         </body>
         </html>`;
     }
+}
+
+/** Local calendar day (YYYY-MM-DD) — matches the daemon's per-day aggregation key. */
+function formatLocalDay(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function emptyAiToolRow(tool: string): AiToolDashboardRow {
+    return {
+        tool,
+        status: 'idle',
+        activeMsToday: 0,
+        runMsToday: 0,
+        inputTokens: 0,
+        outputTokens: 0
+    };
 }

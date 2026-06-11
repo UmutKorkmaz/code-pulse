@@ -1,0 +1,46 @@
+{
+  "$schema": "https://registry.codepulse.dev/v1/scanner.schema.json",
+  "id": "scn.kilo",
+  "version": "1.0.0",
+  "displayName": "Kilo",
+  "publisher": "code-pulse-official",
+  "trust": "official",
+  "enabled": true,
+  "minDaemon": "0.9.0",
+  "minProtocol": "5.1",
+  "capabilities": [
+    "process",
+    "log",
+    "lm"
+  ],
+  "processPatterns": [
+    "kilo",
+    "Kilo"
+  ],
+  "logPaths": [
+    {
+      "glob": "~/.kilo/logs/**/*.jsonl",
+      "parser": "generic-ndjson-v1",
+      "watchMode": "tail"
+    }
+  ],
+  "tokenFields": {
+    "input": "input_tokens",
+    "output": "output_tokens",
+    "model": "model"
+  },
+  "allowedFields": [
+    "session_id",
+    "tool_name",
+    "duration_ms",
+    "token_counts"
+  ],
+  "redactedFields": [
+    "prompt",
+    "response",
+    "content"
+  ],
+  "contentPolicy": "metadata-only",
+  "signature": "rn52s4rHpyBf3xHEnCFp0SGSkxO4cW73ID7+4qVAesinlad87IA4Zmoc4+e7Onw/qeIfXUlyo0ykNESD6A2cCA==",
+  "bundleHash": "ae1d833509a3c7bfbf4058d0baa495d080aa63e021f7a0fe274b1b9606f3bc8d"
+}
