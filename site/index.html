@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Code Pulse is local-first developer time tracking and AI-activity observability for VS Code, desktop, CLI, daemon, and MCP."
+    >
+    <title>Code Pulse | Local-first developer time tracking</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="alternate icon" href="./favicon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,650;14..32,800&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <nav class="nav" aria-label="Primary">
+        <a class="brand" href="#top" aria-label="Code Pulse home">
+          <img class="brand-mark" src="./assets/brand/codepulse-mark.svg" alt="" aria-hidden="true" width="40" height="40">
+          <span>Code Pulse</span>
+        </a>
+
+        <button
+          class="nav-toggle"
+          type="button"
+          aria-controls="primary-nav"
+          aria-expanded="false"
+          aria-label="Open navigation"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <div class="nav-menu" id="primary-nav">
+          <a href="#features">Features</a>
+          <a href="#surfaces">Surfaces</a>
+          <a href="#privacy">Privacy</a>
+          <a href="#cli">CLI</a>
+          <a href="https://github.com/UmutKorkmaz/code-pulse">GitHub</a>
+          <a class="nav-cta" href="https://github.com/UmutKorkmaz/code-pulse#installation">Install</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero section-shell" id="top" aria-labelledby="hero-title">
+        <div class="hero-copy" data-reveal>
+          <p class="eyebrow"><span></span> Local-first developer instrument</p>
+          <h1 id="hero-title">Your coding time, measured. Your AI, accounted for.</h1>
+          <p class="hero-sub">
+            Local-first time tracking that finally separates your hours from your AI agents'
+            &mdash; run time vs real work, all on your machine.
+          </p>
+          <div class="hero-actions" aria-label="Primary actions">
+            <a class="button button-primary" href="https://github.com/UmutKorkmaz/code-pulse#installation">
+              <span>Install for VS Code</span>
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M6 3l5 5-5 5M2 8h9" />
+              </svg>
+            </a>
+            <a class="button button-ghost" href="https://github.com/UmutKorkmaz/code-pulse">
+              <span>View on GitHub</span>
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M6.5 12.5l4.5-4.5-4.5-4.5M11 8H2.5" />
+              </svg>
+            </a>
+          </div>
+          <dl class="hero-metrics" aria-label="Code Pulse capabilities">
+            <div>
+              <dt>Detected AI tools</dt>
+              <dd>6</dd>
+            </div>
+            <div>
+              <dt>Daemon bind</dt>
+              <dd>127.0.0.1</dd>
+            </div>
+            <div>
+              <dt>Storage</dt>
+              <dd>SQLite</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="hero-visual" data-reveal>
+          <div class="instrument-frame" aria-label="Today You vs AI activity visualization">
+            <div class="frame-topbar">
+              <span></span>
+              <span></span>
+              <span></span>
+              <strong>pulse://today</strong>
+            </div>
+
+            <svg class="pulse-visual" viewBox="0 0 720 360" role="img" aria-labelledby="pulse-title pulse-desc">
+              <title id="pulse-title">Animated pulse waveform resolving into a bar chart</title>
+              <desc id="pulse-desc">A heartbeat waveform traces local coding activity, ending as teal and coral bars for you and AI.</desc>
+              <defs>
+                <linearGradient id="wave-gradient" x1="80" x2="640" y1="0" y2="0" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="var(--accent)" />
+                  <stop offset="0.68" stop-color="var(--accent)" />
+                  <stop offset="1" stop-color="var(--accent-ai)" />
+                </linearGradient>
+                <filter id="soft-glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="5" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+              <g class="grid-lines" aria-hidden="true">
+                <path d="M80 70h560M80 130h560M80 190h560M80 250h560M80 310h560" />
+                <path d="M120 48v278M220 48v278M320 48v278M420 48v278M520 48v278M620 48v278" />
+              </g>
+              <path
+                class="pulse-wave"
+                pathLength="1"
+                filter="url(#soft-glow)"
+                d="M82 184H126L143 184L158 104L184 260L206 149L226 185H284L302 184L316 132L337 216L354 178L372 184H438L460 184L478 92L501 270L528 156L548 184H585"
+              />
+              <g class="chart-bars" aria-hidden="true">
+                <rect class="bar bar-you" x="608" y="128" width="22" height="150" rx="4" />
+                <rect class="bar bar-ai" x="638" y="202" width="22" height="76" rx="4" />
+                <path d="M594 278h82" />
+              </g>
+              <text x="608" y="304" class="svg-label">YOU</text>
+              <text x="638" y="322" class="svg-label svg-label-ai">AI</text>
+            </svg>
+
+            <aside class="today-card" aria-label="Today You vs AI">
+              <div class="today-card-head">
+                <span>Today &mdash; You vs AI</span>
+                <strong>live</strong>
+              </div>
+              <div class="time-row you">
+                <span>You</span>
+                <strong>4h 12m</strong>
+              </div>
+              <div class="meter" aria-hidden="true"><span style="width: 82%"></span></div>
+              <div class="time-row ai">
+                <span>Claude Code</span>
+                <strong>ran 3h 06m &middot; worked 41m</strong>
+              </div>
+              <div class="meter ai-meter" aria-hidden="true"><span style="width: 24%"></span></div>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <section class="editorial-band" aria-label="Editorial statement">
+        <p>AI writes more of your code every week. Do you actually know how much?</p>
+      </section>
+
+      <section class="surfaces section-shell" id="surfaces" aria-labelledby="surfaces-title">
+        <div class="section-kicker" data-reveal>Three surfaces</div>
+        <div class="section-heading" data-reveal>
+          <h2 id="surfaces-title">One local signal, three ways to read it.</h2>
+          <p>
+            Code Pulse keeps the extension, desktop app, CLI, daemon, and MCP server aligned around the
+            same local activity stream.
+          </p>
+        </div>
+
+        <div class="surface-showcase" data-tabs data-reveal>
+          <div class="surface-tabs" role="tablist" aria-label="Code Pulse surfaces">
+            <button class="surface-tab is-active" id="tab-extension" type="button" role="tab" aria-selected="true" aria-controls="extension">
+              <span>VS Code extension</span>
+              <em>v1.2.0</em>
+            </button>
+            <button class="surface-tab" id="tab-desktop" type="button" role="tab" aria-selected="false" aria-controls="desktop" tabindex="-1">
+              <span>Desktop app</span>
+              <em>Tauri + Svelte</em>
+            </button>
+            <button class="surface-tab" id="tab-cli" type="button" role="tab" aria-selected="false" aria-controls="cli" tabindex="-1">
+              <span>CLI + daemon + MCP</span>
+              <em>127.0.0.1:7842</em>
+            </button>
+          </div>
+
+          <article class="surface-panel is-active" id="extension" role="tabpanel" aria-labelledby="tab-extension">
+            <div class="panel-copy">
+              <p class="eyebrow"><span></span> Editor surface</p>
+              <h3>Automatic coding time with AI visibility in the same dashboard.</h3>
+              <p>
+                Heartbeat tracking, idle detection, per project/language/file breakdowns, charts,
+                goals, streaks, focus sessions, CSV export, and an AI Tools panel for terminal and
+                extension activity.
+              </p>
+              <div class="command-strip" aria-label="VS Code commands">
+                <span>Show Dashboard</span>
+                <span>Toggle Time Tracking</span>
+                <span>Toggle Focus Session</span>
+                <span>Show Goals</span>
+              </div>
+            </div>
+
+            <div class="mockup vscode-mockup" aria-label="VS Code dashboard mockup">
+              <div class="window-top">
+                <span></span><span></span><span></span>
+                <strong>Code Pulse Dashboard</strong>
+              </div>
+              <div class="vscode-body">
+                <aside class="vscode-rail" aria-hidden="true">
+                  <b>CP</b>
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </aside>
+                <div class="vscode-sidebar" aria-hidden="true">
+                  <span class="sidebar-title">CODE PULSE</span>
+                  <a>Today</a>
+                  <a>Projects</a>
+                  <a>Languages</a>
+                  <a class="selected">AI Tools</a>
+                  <a>Goals</a>
+                </div>
+                <div class="vscode-main">
+                  <div class="dash-head">
+                    <div>
+                      <span>Dashboard</span>
+                      <strong>4h 12m tracked today</strong>
+                    </div>
+                    <em>tracking on</em>
+                  </div>
+                  <div class="stats-row">
+                    <div><span>Focus</span><strong>2h 48m</strong></div>
+                    <div><span>Streak</span><strong>11d</strong></div>
+                    <div><span>CSV</span><strong>ready</strong></div>
+                  </div>
+                  <div class="chart-panel">
+                    <div class="chart-bars-mini" aria-hidden="true">
+                      <span style="height: 38%"></span>
+                      <span style="height: 52%"></span>
+                      <span style="height: 44%"></span>
+                      <span style="height: 72%"></span>
+                      <span style="height: 64%"></span>
+                      <span style="height: 86%"></span>
+                      <span style="height: 58%"></span>
+                    </div>
+                  </div>
+                  <div class="ai-tools-card">
+                    <div class="card-title">
+                      <span>AI Tools</span>
+                      <em>6 scanners</em>
+                    </div>
+                    <div class="ai-tool-row">
+                      <strong>Claude Code</strong>
+                      <span>ran 3h 06m &middot; worked 41m</span>
+                    </div>
+                    <div class="ai-tool-row">
+                      <strong>OpenAI Codex</strong>
+                      <span>ran 1h 18m &middot; worked 22m</span>
+                    </div>
+                    <div class="ai-tool-row muted-row">
+                      <strong>Cursor</strong>
+                      <span>extension detected</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="surface-panel" id="desktop" role="tabpanel" aria-labelledby="tab-desktop" hidden>
+            <div class="panel-copy">
+              <p class="eyebrow"><span></span> Desktop surface</p>
+              <h3>The daily answer: what did you do, and what did your agents do?</h3>
+              <p>
+                Home shows You vs AI, Timeline shows chronological activity with run vs work time,
+                Tokens breaks down model usage, Recovery restores snapshots, and AI Sources manages
+                the scanner registry.
+              </p>
+            </div>
+
+            <div class="mockup desktop-mockup" aria-label="Desktop app Home and Timeline mockup">
+              <div class="window-top">
+                <span></span><span></span><span></span>
+                <strong>Code Pulse Desktop</strong>
+              </div>
+              <div class="desktop-body">
+                <aside class="desktop-sidebar" aria-hidden="true">
+                  <strong>Code Pulse</strong>
+                  <a class="selected">Home</a>
+                  <a>Timeline</a>
+                  <a>Tokens</a>
+                  <a>Recovery</a>
+                  <a>AI Sources</a>
+                </aside>
+                <div class="desktop-main">
+                  <div class="desktop-heading">
+                    <span>Home</span>
+                    <strong>You vs AI</strong>
+                  </div>
+                  <div class="split-bars" aria-hidden="true">
+                    <div class="split-line">
+                      <span>You</span>
+                      <strong>4h 12m</strong>
+                      <i class="you-bar" style="width: 78%"></i>
+                    </div>
+                    <div class="split-line ai-line">
+                      <span>AI active work</span>
+                      <strong>1h 03m</strong>
+                      <i class="ai-bar" style="width: 31%"></i>
+                    </div>
+                  </div>
+                  <div class="timeline-card">
+                    <span class="timeline-dot"></span>
+                    <div>
+                      <strong>Claude Code</strong>
+                      <p>ran 3h &middot; worked 37m</p>
+                    </div>
+                    <em>terminal</em>
+                  </div>
+                  <div class="token-strip" aria-hidden="true">
+                    <span>Tokens</span>
+                    <strong>gpt-5</strong>
+                    <strong>claude-sonnet</strong>
+                    <strong>cursor-agent</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="surface-panel" id="cli" role="tabpanel" aria-labelledby="tab-cli" hidden>
+            <div class="panel-copy">
+              <p class="eyebrow"><span></span> Local platform</p>
+              <h3>A daemon for ingestion, a CLI for inspection, and MCP for agents.</h3>
+              <p>
+                Run <code>codepulse doctor</code>, <code>codepulse status</code>,
+                <code>codepulse registry</code>, or <code>codepulse daemon</code>. The local daemon
+                listens on HTTP 127.0.0.1:7842, and the MCP server lets any AI agent query your stats.
+              </p>
+            </div>
+
+            <div class="mockup terminal-mockup" aria-label="codepulse doctor terminal output">
+              <div class="terminal-top">
+                <span></span><span></span><span></span>
+                <strong>terminal</strong>
+              </div>
+              <pre><code><span class="prompt">$</span> codepulse doctor
+<span class="ok">&#10003;</span> data-directory        ~/.codepulse
+<span class="ok">&#10003;</span> auth-token            present, mode 0600
+<span class="ok">&#10003;</span> database              SQLite ready
+<span class="ok">&#10003;</span> daemon-reachable      http://127.0.0.1:7842
+<span class="ok">&#10003;</span> registry              6 scanners
+
+All checks passed</code></pre>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="features section-shell" id="features" aria-labelledby="features-title">
+        <div class="section-kicker" data-reveal>Feature bento</div>
+        <div class="section-heading" data-reveal>
+          <h2 id="features-title">Built for developers who want the accounting to be real.</h2>
+          <p>
+            Code Pulse records the local signals that matter without turning your workflow into
+            another dashboard chore.
+          </p>
+        </div>
+
+        <div class="bento-grid" data-reveal>
+          <article class="bento-card bento-wide">
+            <svg class="feature-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 12h4l2-7 4 14 3-9 2 2h3" />
+            </svg>
+            <h3>Run-vs-active time</h3>
+            <p>Each AI tool gets uptime separated from real activity, so "ran 3h" can still mean "worked 37m".</p>
+          </article>
+
+          <article class="bento-card bento-tall">
+            <svg class="feature-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 7h14M5 12h14M5 17h14" />
+              <path d="M8 4v16M16 4v16" />
+            </svg>
+            <h3>6 AI tools detected</h3>
+            <p>Terminal and extension scanners recognize the tools developers actually run.</p>
+            <div class="chip-cloud" aria-label="Detected AI tools">
+              <span>Claude Code</span>
+              <span>OpenAI Codex</span>
+              <span>Cursor</span>
+              <span>Cline</span>
+              <span>Droid (Factory)</span>
+              <span>Kilo</span>
+            </div>
+          </article>
+
+          <article class="bento-card">
+            <svg class="feature-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.2 6.8 19l1-5.8L3.6 9.1l5.8-.8L12 3z" />
+            </svg>
+            <h3>Goals &amp; streaks</h3>
+            <p>Daily and weekly goals keep your own coding rhythm visible.</p>
+          </article>
+
+          <article class="bento-card">
+            <svg class="feature-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 3h8M12 7v5l3 2" />
+              <circle cx="12" cy="13" r="8" />
+            </svg>
+            <h3>Focus sessions</h3>
+            <p>Start a focused window and keep the session separate from idle time.</p>
+          </article>
+
+          <article class="bento-card">
+            <svg class="feature-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 19V5M4 19h16" />
+              <path d="M7 16l3-4 3 2 5-7" />
+            </svg>
+            <h3>Productivity scoring</h3>
+            <p>Measure patterns without pretending raw hours are the whole story.</p>
+          </article>
+
+          <article class="bento-card bento-wide heatmap-card">
+            <svg class="feature-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 4h14v16H5z" />
+              <path d="M9 4v16M15 4v16M5 9h14M5 15h14" />
+            </svg>
+            <h3>CSV export &amp; heatmap</h3>
+            <p>Take the raw local data with you, or inspect the week as a compact activity heatmap.</p>
+            <div class="heatmap" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="privacy" id="privacy" aria-labelledby="privacy-title">
+        <div class="privacy-inner">
+          <div data-reveal>
+            <p class="eyebrow"><span></span> Privacy / local-first</p>
+            <h2 id="privacy-title">Your data never leaves your machine.</h2>
+            <p>
+              Code Pulse has no cloud account, no telemetry pipeline, and no remote analytics service.
+              Activity lands in a local SQLite database and stays there.
+            </p>
+          </div>
+          <div class="proof-grid" data-reveal>
+            <div class="proof-item">
+              <span>127.0.0.1:7842</span>
+              <strong>Loopback-only daemon</strong>
+            </div>
+            <div class="proof-item">
+              <span>0600</span>
+              <strong>Auth token file mode</strong>
+            </div>
+            <div class="proof-item">
+              <span>ed25519</span>
+              <strong>Signed scanner registry</strong>
+            </div>
+            <div class="proof-item">
+              <span>NO CLOUD</span>
+              <strong>No account or telemetry</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="how-it-works section-shell" aria-labelledby="works-title">
+        <div class="section-kicker" data-reveal>How it works</div>
+        <div class="section-heading" data-reveal>
+          <h2 id="works-title">Install once. Let the instrument run quietly.</h2>
+        </div>
+        <ol class="steps" data-reveal>
+          <li>
+            <span>1</span>
+            <h3>Install</h3>
+            <p>Add the Code Pulse VS Code extension and start the local platform when you want CLI, daemon, or MCP access.</p>
+          </li>
+          <li>
+            <span>2</span>
+            <h3>It tracks silently</h3>
+            <p>Editor heartbeats, terminals, and AI logs flow into the local daemon without sending data anywhere.</p>
+          </li>
+          <li>
+            <span>3</span>
+            <h3>See your pulse</h3>
+            <p>Read the signal in the extension dashboard, desktop app, CLI, or from an AI agent through MCP.</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="final-cta section-shell" aria-labelledby="final-title">
+        <div class="cta-panel" data-reveal>
+          <p class="eyebrow"><span></span> Start local</p>
+          <h2 id="final-title">Start measuring your pulse.</h2>
+          <div class="hero-actions">
+            <a class="button button-primary" href="https://github.com/UmutKorkmaz/code-pulse#installation">
+              <span>Install for VS Code</span>
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M6 3l5 5-5 5M2 8h9" />
+              </svg>
+            </a>
+            <a class="button button-ghost" href="https://github.com/UmutKorkmaz/code-pulse">
+              <span>GitHub</span>
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M6.5 12.5l4.5-4.5-4.5-4.5M11 8H2.5" />
+              </svg>
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        <a class="brand" href="#top" aria-label="Code Pulse home">
+          <img class="brand-mark" src="./assets/brand/codepulse-mark.svg" alt="" aria-hidden="true" width="40" height="40">
+          <span>Code Pulse</span>
+        </a>
+        <p>Runs entirely on your machine.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="#features">Features</a>
+        <a href="#surfaces">Surfaces</a>
+        <a href="#privacy">Privacy</a>
+        <a href="#cli">CLI</a>
+        <a href="https://github.com/UmutKorkmaz/code-pulse">Repo</a>
+      </nav>
+      <p class="license">MIT licensed</p>
+    </footer>
+
+    <script src="./main.js" defer></script>
+  </body>
+</html>

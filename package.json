@@ -2,7 +2,7 @@
   "name": "codepulse",
   "displayName": "Code Pulse",
   "description": "Advanced time tracking and productivity analytics for developers. Track coding time, analyze productivity patterns, and gain insights into your development workflow.",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "publisher": "codepulse",
   "engines": {
     "vscode": "^1.74.0"

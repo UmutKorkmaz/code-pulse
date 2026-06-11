@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="codepulse-mark-title codepulse-mark-desc">
+  <title id="codepulse-mark-title">Code Pulse mark</title>
+  <desc id="codepulse-mark-desc">A two-layer ECG pulse with teal for you and coral for AI.</desc>
+  <defs>
+    <linearGradient id="mark-teal" x1="32" y1="136" x2="232" y2="136" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#34e0a1"/>
+      <stop offset="1" stop-color="#22c386"/>
+    </linearGradient>
+  </defs>
+  <path d="M32 136H75L86 148L108 70L130 178L152 114L164 136H184L196 106L212 152L224 136H232" fill="none" stroke="#f07a5f" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" opacity=".92" transform="translate(5 5)"/>
+  <path d="M32 136H75L86 148L108 70L130 178L152 114L164 136H184L196 106L212 152L224 136H232" fill="none" stroke="url(#mark-teal)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
