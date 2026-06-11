@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Code Pulse docs for local-first developer time tracking, AI-activity observability, the daemon, CLI, desktop app, VS Code extension, and MCP server."
+    >
+    <title>Code Pulse Docs | Local-first developer time tracking</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="alternate icon" href="./favicon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,650;14..32,800&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <nav class="nav" aria-label="Primary">
+        <a class="brand" href="./index.html" aria-label="Code Pulse home">
+          <img class="brand-mark" src="./assets/brand/codepulse-mark.svg" alt="" aria-hidden="true" width="40" height="40">
+          <span>Code Pulse</span>
+        </a>
+
+        <button
+          class="nav-toggle"
+          type="button"
+          aria-controls="primary-nav"
+          aria-expanded="false"
+          aria-label="Open navigation"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <div class="nav-menu" id="primary-nav">
+          <a href="./index.html">Home</a>
+          <a class="is-current" href="#overview">Docs</a>
+          <a href="#install-vscode">Install</a>
+          <a href="#ai-tool-detection">AI detection</a>
+          <a href="#privacy-data">Privacy</a>
+          <a href="#mcp-server">MCP</a>
+          <a href="https://github.com/UmutKorkmaz/code-pulse">GitHub</a>
+          <a class="nav-cta" href="https://github.com/UmutKorkmaz/code-pulse#installation">Install</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main" class="docs-main">
+      <section class="docs-hero section-shell" aria-labelledby="docs-title">
+        <p class="eyebrow"><span></span> Local-first docs</p>
+        <h1 id="docs-title">Code Pulse documentation.</h1>
+        <p>
+          Install the VS Code extension, desktop app, CLI, local daemon, and MCP server,
+          then read the same local developer activity signal from each surface.
+        </p>
+      </section>
+
+      <div class="docs-layout section-shell">
+        <aside class="docs-sidebar" aria-label="Documentation sections">
+          <nav>
+            <a href="#overview">Overview</a>
+            <a href="#install-vscode">Install &mdash; VS Code</a>
+            <a href="#install-desktop">Install &mdash; Desktop</a>
+            <a href="#install-cli-daemon">Install &mdash; CLI</a>
+            <a href="#ai-tool-detection">AI tool detection</a>
+            <a href="#dashboards">The dashboards</a>
+            <a href="#privacy-data">Privacy &amp; data</a>
+            <a href="#mcp-server">MCP server</a>
+            <a href="#troubleshooting">Troubleshooting</a>
+          </nav>
+        </aside>
+
+        <article class="docs-content">
+          <section class="docs-section" id="overview" aria-labelledby="overview-title">
+            <h2 id="overview-title">Overview</h2>
+            <p>
+              Code Pulse is local-first developer time tracking and AI-activity observability.
+              It has three surfaces: VS Code extension, desktop app (Tauri+Svelte), and
+              CLI + local daemon + MCP server.
+            </p>
+          </section>
+
+          <section class="docs-section" id="install-vscode" aria-labelledby="install-vscode-title">
+            <h2 id="install-vscode-title">Install &mdash; VS Code extension</h2>
+            <p>Install the <code>.vsix</code>:</p>
+            <pre class="docs-code"><code>code --install-extension codepulse-1.2.1.vsix</code></pre>
+            <p>
+              Or install from source. Reload the window, then open Code Pulse from the
+              Command Palette with <code>Code Pulse: Show Dashboard</code>.
+            </p>
+          </section>
+
+          <section class="docs-section" id="install-desktop" aria-labelledby="install-desktop-title">
+            <h2 id="install-desktop-title">Install &mdash; Desktop app</h2>
+            <p>Build the desktop app from source:</p>
+            <pre class="docs-code"><code>git clone https://github.com/UmutKorkmaz/code-pulse
+cd code-pulse/platform &amp;&amp; npm install &amp;&amp; npm run build
+cd apps/desktop &amp;&amp; npm run tauri:build</code></pre>
+            <p>
+              The native installer is in <code>src-tauri/target/release/bundle/</code>.
+              For development, run <code>npm run tauri:dev</code>.
+            </p>
+            <div class="docs-note">
+              <p>
+                The desktop app needs the daemon running. Dev mode needs
+                <code>VITE_DAEMON_TOKEN=$(cat ~/.codepulse/token) npm run dev</code>.
+              </p>
+            </div>
+          </section>
+
+          <section class="docs-section" id="install-cli-daemon" aria-labelledby="install-cli-daemon-title">
+            <h2 id="install-cli-daemon-title">Install &mdash; CLI &amp; daemon</h2>
+            <p>
+              The daemon binds <code>127.0.0.1:7842</code> for HTTP and <code>:7843</code>
+              for WebSocket. Start it with:
+            </p>
+            <pre class="docs-code"><code>node platform/apps/daemon/dist/main.js</code></pre>
+            <p>CLI commands:</p>
+            <pre class="docs-code"><code>codepulse doctor
+codepulse status
+codepulse registry
+codepulse daemon</code></pre>
+            <p>Sample <code>codepulse doctor</code> output:</p>
+            <pre class="docs-code"><code>$ codepulse doctor
+&#10003; data-directory        ~/.codepulse
+&#10003; auth-token            present, mode 0600
+&#10003; database              SQLite ready
+&#10003; daemon-reachable      http://127.0.0.1:7842
+&#10003; registry              6 scanners
+
+All checks passed</code></pre>
+          </section>
+
+          <section class="docs-section" id="ai-tool-detection" aria-labelledby="ai-tool-detection-title">
+            <h2 id="ai-tool-detection-title">AI tool detection</h2>
+            <p>
+              Code Pulse detects 6 tools via process, log, terminal, and extension signals:
+            </p>
+            <ul class="tool-list">
+              <li>Claude Code</li>
+              <li>OpenAI Codex</li>
+              <li>Cursor</li>
+              <li>Cline</li>
+              <li>Droid (Factory)</li>
+              <li>Kilo</li>
+            </ul>
+            <p>
+              Run time is how long the tool ran. Active work time is the activity Code Pulse
+              can account for. All sources merge into one row per tool.
+            </p>
+          </section>
+
+          <section class="docs-section" id="dashboards" aria-labelledby="dashboards-title">
+            <h2 id="dashboards-title">The dashboards</h2>
+            <p>
+              The VS Code dashboard includes the <code>AI Tools</code> card. The desktop app
+              includes the Home <code>You vs AI</code> panel and Timeline rows like
+              <code>ran 3h &middot; worked 37m</code>.
+            </p>
+          </section>
+
+          <section class="docs-section" id="privacy-data" aria-labelledby="privacy-data-title">
+            <h2 id="privacy-data-title">Privacy &amp; data</h2>
+            <p>
+              Code Pulse is 100% local: SQLite database under <code>~/.codepulse</code>,
+              loopback-only daemon, <code>0600</code> auth token, ed25519-signed scanner
+              registry, and no cloud, account, or telemetry.
+            </p>
+          </section>
+
+          <section class="docs-section" id="mcp-server" aria-labelledby="mcp-server-title">
+            <h2 id="mcp-server-title">MCP server</h2>
+            <p>
+              Query your stats from any MCP-capable AI agent. The MCP server uses stdio
+              JSON-RPC.
+            </p>
+          </section>
+
+          <section class="docs-section" id="troubleshooting" aria-labelledby="troubleshooting-title">
+            <h2 id="troubleshooting-title">Troubleshooting</h2>
+            <ul class="trouble-list">
+              <li>
+                Daemon not reachable: start the daemon or run <code>codepulse doctor</code>.
+              </li>
+              <li>
+                Desktop <code>401</code> in dev: set
+                <code>VITE_DAEMON_TOKEN=$(cat ~/.codepulse/token)</code>.
+              </li>
+              <li>
+                Stale unsigned manifests: clear <code>~/.codepulse/cache/registry/</code>
+                so the daemon reseeds signed ones.
+              </li>
+            </ul>
+          </section>
+        </article>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        <a class="brand" href="./index.html" aria-label="Code Pulse home">
+          <img class="brand-mark" src="./assets/brand/codepulse-mark.svg" alt="" aria-hidden="true" width="40" height="40">
+          <span>Code Pulse</span>
+        </a>
+        <p>Runs entirely on your machine.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="./index.html">Home</a>
+        <a href="#overview">Docs</a>
+        <a href="#install-vscode">Install</a>
+        <a href="#privacy-data">Privacy</a>
+        <a href="#mcp-server">MCP</a>
+        <a href="https://github.com/UmutKorkmaz/code-pulse">Repo</a>
+      </nav>
+      <p class="license">MIT licensed</p>
+    </footer>
+
+    <script src="./main.js" defer></script>
+  </body>
+</html>

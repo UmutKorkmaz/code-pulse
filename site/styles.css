@@ -14,7 +14,7 @@
   --font-display: "Space Grotesk", "Inter", sans-serif;
   --font-body: "Inter", sans-serif;
   --font-mono: "JetBrains Mono", monospace;
-  --hero-type: clamp(2.75rem, 1rem + 7vw, 6rem);
+  --hero-type: clamp(2.1rem, 1.1rem + 3.4vw, 4rem);
   --section-type: clamp(1.75rem, 1.12rem + 2.4vw, 3.5rem);
   --body-type: clamp(1rem, 0.96rem + 0.18vw, 1.125rem);
   --container: 74rem;
@@ -190,6 +190,11 @@ button {
   background: oklch(100% 0 0 / 0.06);
 }
 
+.nav-menu a.is-current {
+  color: var(--text);
+  background: oklch(100% 0 0 / 0.06);
+}
+
 .nav-menu .nav-cta {
   justify-content: center;
   color: var(--bg);
@@ -240,12 +245,12 @@ button {
 
 .hero {
   display: grid;
-  gap: 3rem;
-  padding-block: 5rem 3.5rem;
+  gap: 2rem;
+  padding-block: 3.5rem 2.75rem;
 }
 
 .hero-copy {
-  max-width: 47rem;
+  max-width: 39rem;
 }
 
 .eyebrow,
@@ -285,21 +290,23 @@ button {
 
 .hero h1 {
   font-size: var(--hero-type);
-  max-width: 11ch;
+  line-height: 1.04;
+  max-width: 23ch;
+  text-wrap: balance;
 }
 
 .hero-sub {
-  max-width: 42rem;
-  margin: 1.4rem 0 0;
+  max-width: 35rem;
+  margin: 1rem 0 0;
   color: var(--muted);
-  font-size: clamp(1.05rem, 0.9rem + 0.6vw, 1.38rem);
+  font-size: clamp(1rem, 0.94rem + 0.35vw, 1.18rem);
 }
 
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
-  margin-top: 2rem;
+  margin-top: 1.45rem;
 }
 
 .button {
@@ -360,13 +367,13 @@ button {
 .hero-metrics {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 0.75rem;
-  max-width: 37rem;
-  margin: 2.4rem 0 0;
+  gap: 0.65rem;
+  max-width: 33rem;
+  margin: 1.55rem 0 0;
 }
 
 .hero-metrics div {
-  padding: 0.9rem 1rem;
+  padding: 0.78rem 0.9rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: oklch(100% 0 0 / 0.035);
@@ -392,7 +399,7 @@ button {
 
 .instrument-frame {
   position: relative;
-  min-height: 30rem;
+  min-height: 26rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background:
@@ -1044,11 +1051,14 @@ button {
 .bento-grid {
   display: grid;
   grid-template-columns: 1fr;
+  align-items: stretch;
   gap: 1rem;
 }
 
 .bento-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
   min-height: 13rem;
   padding: 1.15rem;
   border: 1px solid var(--border);
@@ -1099,7 +1109,8 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
-  margin-top: 1.25rem;
+  margin-top: auto;
+  padding-top: 1.25rem;
 }
 
 .heatmap {
@@ -1107,7 +1118,8 @@ button {
   grid-template-columns: repeat(5, 1fr);
   gap: 0.42rem;
   max-width: 18rem;
-  margin-top: 1.3rem;
+  margin-top: auto;
+  padding-top: 1.25rem;
 }
 
 .heatmap span {
@@ -1271,6 +1283,185 @@ button {
   font-family: var(--font-mono);
 }
 
+.docs-main {
+  padding-bottom: 1rem;
+}
+
+.docs-hero {
+  padding-block: 3.5rem 2rem;
+}
+
+.docs-hero h1 {
+  max-width: 15ch;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.35rem, 1.25rem + 4.4vw, 4.75rem);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.docs-hero p {
+  max-width: 54rem;
+  margin: 1rem 0 0;
+  color: var(--muted);
+  font-size: clamp(1rem, 0.94rem + 0.35vw, 1.18rem);
+}
+
+.docs-layout {
+  display: grid;
+  gap: 2rem;
+  padding-block: 1rem 5rem;
+}
+
+.docs-sidebar {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: oklch(100% 0 0 / 0.035);
+}
+
+.docs-sidebar nav {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.65rem;
+}
+
+.docs-sidebar a {
+  display: flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  transition:
+    color var(--duration-fast) var(--ease),
+    background var(--duration-fast) var(--ease);
+}
+
+.docs-sidebar a:hover {
+  color: var(--text);
+  background: oklch(100% 0 0 / 0.06);
+}
+
+.docs-content {
+  min-width: 0;
+  max-width: 72ch;
+}
+
+.docs-section {
+  scroll-margin-top: 5.5rem;
+  padding-block: 2rem;
+  border-top: 1px solid var(--border);
+}
+
+.docs-section:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.docs-content h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.45rem, 1.08rem + 1.25vw, 2.25rem);
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.docs-content p,
+.docs-content li {
+  color: var(--muted);
+}
+
+.docs-content p {
+  margin: 0.9rem 0 0;
+}
+
+.docs-content ul,
+.docs-content ol {
+  margin: 1rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.docs-content li + li {
+  margin-top: 0.45rem;
+}
+
+.docs-content code {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+}
+
+.docs-code {
+  margin: 1rem 0 0;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+  background:
+    linear-gradient(145deg, oklch(100% 0 0 / 0.05), transparent 40%),
+    oklch(10% 0.014 260);
+  font-family: var(--font-mono);
+  font-size: clamp(0.78rem, 0.72rem + 0.24vw, 0.92rem);
+  line-height: 1.7;
+  overflow-x: auto;
+}
+
+.docs-code code {
+  color: inherit;
+  font: inherit;
+  overflow-wrap: normal;
+}
+
+.docs-note {
+  margin: 1rem 0 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid color-mix(in oklch, var(--accent) 28%, var(--border));
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  background: color-mix(in oklch, var(--accent) 8%, transparent);
+}
+
+.docs-note p {
+  margin: 0;
+}
+
+.tool-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.55rem;
+  padding-left: 0;
+  list-style: none;
+}
+
+.tool-list li {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: oklch(100% 0 0 / 0.035);
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+}
+
+.trouble-list {
+  display: grid;
+  gap: 0.75rem;
+  padding-left: 0;
+  list-style: none;
+}
+
+.trouble-list li {
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: oklch(100% 0 0 / 0.035);
+}
+
 [data-reveal] {
   opacity: 0;
   transform: translateY(1rem);
@@ -1321,6 +1512,15 @@ button {
     grid-template-columns: repeat(2, 1fr);
   }
 
+  .bento-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
+  }
+
+  .tool-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .surface-panel,
   .bento-card,
   .cta-panel {
@@ -1329,41 +1529,6 @@ button {
 }
 
 @media (min-width: 48rem) {
-  .nav-toggle {
-    display: none;
-  }
-
-  body.nav-open {
-    overflow: auto;
-  }
-
-  .nav-menu {
-    position: static;
-    display: flex;
-    align-items: center;
-    width: auto;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-    opacity: 1;
-    pointer-events: auto;
-    transform: none;
-  }
-
-  .nav-menu a {
-    min-height: 2.5rem;
-    padding-inline: 0.7rem;
-  }
-
-  .nav-menu .nav-cta {
-    min-width: 5.5rem;
-  }
-
-  .hero {
-    padding-block: 6.5rem 5rem;
-  }
-
   .hero-metrics {
     grid-template-columns: repeat(3, 1fr);
   }
@@ -1440,27 +1605,6 @@ button {
     font-family: var(--font-display);
   }
 
-  .bento-grid {
-    grid-template-columns: repeat(6, 1fr);
-  }
-
-  .bento-card {
-    grid-column: span 3;
-  }
-
-  .bento-wide {
-    grid-column: span 4;
-  }
-
-  .bento-tall {
-    grid-column: span 2;
-    grid-row: span 2;
-  }
-
-  .heatmap-card {
-    grid-column: span 3;
-  }
-
   .privacy-inner {
     grid-template-columns: 1fr 1fr;
     align-items: center;
@@ -1495,18 +1639,54 @@ button {
 }
 
 @media (min-width: 64rem) {
-  .hero {
-    grid-template-columns: 0.9fr 1.1fr;
+  .nav-toggle {
+    display: none;
+  }
+
+  body.nav-open {
+    overflow: auto;
+  }
+
+  .nav-menu {
+    position: static;
+    display: flex;
     align-items: center;
-    min-height: calc(100svh - 4.25rem);
+    width: auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+  }
+
+  .nav-menu a {
+    min-height: 2.5rem;
+    padding-inline: 0.7rem;
+  }
+
+  .nav-menu .nav-cta {
+    min-width: 5.5rem;
+  }
+
+  .hero {
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+    align-items: center;
+    min-height: min(42rem, calc(100svh - 4.25rem));
+    padding-block: 3rem;
   }
 
   .hero-copy {
-    padding-bottom: 4rem;
+    padding-bottom: 0;
   }
 
   .instrument-frame {
-    min-height: 37rem;
+    min-height: 31rem;
+  }
+
+  .bento-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .surface-panel {
@@ -1521,6 +1701,21 @@ button {
 
   .proof-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .docs-hero {
+    padding-block: 4rem 2.5rem;
+  }
+
+  .docs-layout {
+    grid-template-columns: 16rem minmax(0, 72ch);
+    align-items: start;
+    gap: 3rem;
+  }
+
+  .docs-sidebar {
+    position: sticky;
+    top: 5.25rem;
   }
 }
 
