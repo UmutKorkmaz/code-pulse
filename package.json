@@ -570,7 +570,7 @@
     "url": "https://github.com/UmutKorkmaz/code-pulse/issues"
   },
   "license": "MIT",
-  "icon": "extension/icon.png",
+  "icon": "icon.png",
   "galleryBanner": {
     "color": "#1e1e1e",
     "theme": "dark"
