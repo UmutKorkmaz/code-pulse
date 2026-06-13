@@ -47,7 +47,7 @@
           <a href="#cli">CLI</a>
           <a href="./docs.html">Docs</a>
           <a href="https://github.com/UmutKorkmaz/code-pulse">GitHub</a>
-          <a class="nav-cta" href="https://github.com/UmutKorkmaz/code-pulse#installation">Install</a>
+          <a class="nav-cta" href="#download">Download</a>
         </div>
       </nav>
     </header>
@@ -62,14 +62,14 @@
             &mdash; run time vs real work, all on your machine.
           </p>
           <div class="hero-actions" aria-label="Primary actions">
-            <a class="button button-primary" href="https://github.com/UmutKorkmaz/code-pulse#installation">
-              <span>Install for VS Code</span>
+            <a class="button button-primary" href="https://marketplace.visualstudio.com/items?itemName=umutkorkmaz.code-pulse-tracker">
+              <span>Get the VS Code extension</span>
               <svg viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M6 3l5 5-5 5M2 8h9" />
               </svg>
             </a>
-            <a class="button button-ghost" href="https://github.com/UmutKorkmaz/code-pulse">
-              <span>View on GitHub</span>
+            <a class="button button-ghost" href="#download">
+              <span>All downloads</span>
               <svg viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M6.5 12.5l4.5-4.5-4.5-4.5M11 8H2.5" />
               </svg>
@@ -174,7 +174,7 @@
           <div class="surface-tabs" role="tablist" aria-label="Code Pulse surfaces">
             <button class="surface-tab is-active" id="tab-extension" type="button" role="tab" aria-selected="true" aria-controls="extension">
               <span>VS Code extension</span>
-              <em>v1.2.0</em>
+              <em>v1.2.2</em>
             </button>
             <button class="surface-tab" id="tab-desktop" type="button" role="tab" aria-selected="false" aria-controls="desktop" tabindex="-1">
               <span>Desktop app</span>
@@ -493,19 +493,80 @@ All checks passed</code></pre>
         </ol>
       </section>
 
+      <section class="download section-shell" id="download" aria-labelledby="download-title">
+        <div class="section-kicker" data-reveal>Download</div>
+        <div class="section-heading" data-reveal>
+          <h2 id="download-title">Choose the surface you want to run first.</h2>
+          <p>
+            Start with the VS Code extension, add the desktop app when you want a dedicated
+            command center, and use the CLI/daemon/MCP layer for local automation.
+          </p>
+        </div>
+
+        <div class="download-grid" data-reveal>
+          <article class="download-card">
+            <span class="download-label">VS Code</span>
+            <h3>Extension</h3>
+            <p>
+              Install the Marketplace extension for automatic coding-time tracking, goals,
+              focus sessions, and the in-editor AI Tools panel.
+            </p>
+            <a class="button button-primary" href="https://marketplace.visualstudio.com/items?itemName=umutkorkmaz.code-pulse-tracker">
+              <span>Open Marketplace</span>
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M6 3l5 5-5 5M2 8h9" />
+              </svg>
+            </a>
+            <p class="download-note">Local VSIX: <code>code-pulse-tracker-1.2.2.vsix</code></p>
+          </article>
+
+          <article class="download-card">
+            <span class="download-label">Desktop</span>
+            <h3>Native app</h3>
+            <p>
+              Use the Tauri desktop dashboard for Timeline, Tokens, Recovery, AI Sources,
+              and the You vs AI overview outside the editor.
+            </p>
+            <a class="button button-ghost" href="https://github.com/UmutKorkmaz/code-pulse/releases">
+              <span>GitHub Releases</span>
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M6.5 12.5l4.5-4.5-4.5-4.5M11 8H2.5" />
+              </svg>
+            </a>
+            <p class="download-note">Installers are produced by the desktop release workflow.</p>
+          </article>
+
+          <article class="download-card">
+            <span class="download-label">Local platform</span>
+            <h3>CLI + daemon + MCP</h3>
+            <p>
+              Run the loopback daemon, query activity from the CLI, and expose local stats
+              to MCP-capable AI agents without sending data to a cloud service.
+            </p>
+            <a class="button button-ghost" href="./docs.html#install-cli-daemon">
+              <span>Read setup docs</span>
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M6.5 12.5l4.5-4.5-4.5-4.5M11 8H2.5" />
+              </svg>
+            </a>
+            <p class="download-note"><code>codepulse doctor</code> verifies the local stack.</p>
+          </article>
+        </div>
+      </section>
+
       <section class="final-cta section-shell" aria-labelledby="final-title">
         <div class="cta-panel" data-reveal>
           <p class="eyebrow"><span></span> Start local</p>
           <h2 id="final-title">Start measuring your pulse.</h2>
           <div class="hero-actions">
-            <a class="button button-primary" href="https://github.com/UmutKorkmaz/code-pulse#installation">
-              <span>Install for VS Code</span>
+            <a class="button button-primary" href="https://marketplace.visualstudio.com/items?itemName=umutkorkmaz.code-pulse-tracker">
+              <span>Get the VS Code extension</span>
               <svg viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M6 3l5 5-5 5M2 8h9" />
               </svg>
             </a>
-            <a class="button button-ghost" href="https://github.com/UmutKorkmaz/code-pulse">
-              <span>GitHub</span>
+            <a class="button button-ghost" href="./docs.html">
+              <span>Read the docs</span>
               <svg viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M6.5 12.5l4.5-4.5-4.5-4.5M11 8H2.5" />
               </svg>

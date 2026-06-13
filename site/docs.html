@@ -48,7 +48,7 @@
           <a href="#privacy-data">Privacy</a>
           <a href="#mcp-server">MCP</a>
           <a href="https://github.com/UmutKorkmaz/code-pulse">GitHub</a>
-          <a class="nav-cta" href="https://github.com/UmutKorkmaz/code-pulse#installation">Install</a>
+          <a class="nav-cta" href="#install-vscode">Install</a>
         </div>
       </nav>
     </header>
@@ -67,6 +67,7 @@
         <aside class="docs-sidebar" aria-label="Documentation sections">
           <nav>
             <a href="#overview">Overview</a>
+            <a href="#quick-start">Quick start</a>
             <a href="#install-vscode">Install &mdash; VS Code</a>
             <a href="#install-desktop">Install &mdash; Desktop</a>
             <a href="#install-cli-daemon">Install &mdash; CLI</a>
@@ -74,6 +75,7 @@
             <a href="#dashboards">The dashboards</a>
             <a href="#privacy-data">Privacy &amp; data</a>
             <a href="#mcp-server">MCP server</a>
+            <a href="#publish-pages">Publish Pages</a>
             <a href="#troubleshooting">Troubleshooting</a>
           </nav>
         </aside>
@@ -88,13 +90,65 @@
             </p>
           </section>
 
+          <section class="docs-section" id="quick-start" aria-labelledby="quick-start-title">
+            <h2 id="quick-start-title">Quick start</h2>
+            <div class="quickstart-grid">
+              <article class="quickstart-card">
+                <span>1</span>
+                <h3>VS Code-only</h3>
+                <p>
+                  Install the extension, reload VS Code, and open
+                  <code>Code Pulse: Show Dashboard</code>.
+                </p>
+              </article>
+              <article class="quickstart-card">
+                <span>2</span>
+                <h3>Desktop</h3>
+                <p>
+                  Start the daemon, then open the Tauri desktop app for Timeline,
+                  Tokens, Recovery, and AI Sources.
+                </p>
+              </article>
+              <article class="quickstart-card">
+                <span>3</span>
+                <h3>CLI + daemon</h3>
+                <p>
+                  Run <code>codepulse doctor</code> and <code>codepulse status</code>
+                  to validate the local service.
+                </p>
+              </article>
+              <article class="quickstart-card">
+                <span>4</span>
+                <h3>AI agents</h3>
+                <p>
+                  Connect the MCP server so local activity, token, and session stats are
+                  queryable by compatible agents.
+                </p>
+              </article>
+            </div>
+          </section>
+
           <section class="docs-section" id="install-vscode" aria-labelledby="install-vscode-title">
             <h2 id="install-vscode-title">Install &mdash; VS Code extension</h2>
-            <p>Install the <code>.vsix</code>:</p>
-            <pre class="docs-code"><code>code --install-extension codepulse-1.2.1.vsix</code></pre>
             <p>
-              Or install from source. Reload the window, then open Code Pulse from the
-              Command Palette with <code>Code Pulse: Show Dashboard</code>.
+              Install from the Marketplace:
+              <a href="https://marketplace.visualstudio.com/items?itemName=umutkorkmaz.code-pulse-tracker">
+                <code>umutkorkmaz.code-pulse-tracker</code>
+              </a>
+            </p>
+            <p>Or install the local <code>.vsix</code>:</p>
+            <pre class="docs-code"><code>code --install-extension code-pulse-tracker-1.2.2.vsix</code></pre>
+            <p>
+              Or package from source:
+            </p>
+            <pre class="docs-code"><code>git clone https://github.com/UmutKorkmaz/code-pulse.git
+cd code-pulse
+npm install
+npm run package
+code --install-extension code-pulse-tracker-1.2.2.vsix</code></pre>
+            <p>
+              Reload the window, then open Code Pulse from the Command Palette with
+              <code>Code Pulse: Show Dashboard</code>.
             </p>
           </section>
 
@@ -108,6 +162,12 @@ cd apps/desktop &amp;&amp; npm run tauri:build</code></pre>
               The native installer is in <code>src-tauri/target/release/bundle/</code>.
               For development, run <code>npm run tauri:dev</code>.
             </p>
+            <p>After a release is published, install from GitHub Releases with:</p>
+            <pre class="docs-code"><code>gh release download v1.2.2 \
+  --repo UmutKorkmaz/code-pulse \
+  --pattern "*.dmg" \
+  --dir dist/releases
+open dist/releases/*.dmg</code></pre>
             <div class="docs-note">
               <p>
                 The desktop app needs the daemon running. Dev mode needs
@@ -184,6 +244,18 @@ All checks passed</code></pre>
             </p>
           </section>
 
+          <section class="docs-section" id="publish-pages" aria-labelledby="publish-pages-title">
+            <h2 id="publish-pages-title">Publish GitHub Pages</h2>
+            <p>
+              The Pages workflow deploys the <code>site/</code> directory. It runs on pushes
+              to <code>main</code>, or you can trigger it manually:
+            </p>
+            <pre class="docs-code"><code>gh workflow run pages.yml --repo UmutKorkmaz/code-pulse --ref main
+RUN_ID=$(gh run list --repo UmutKorkmaz/code-pulse --workflow pages.yml --limit 1 --json databaseId --jq '.[0].databaseId')
+gh run watch --repo UmutKorkmaz/code-pulse "$RUN_ID"
+gh api repos/UmutKorkmaz/code-pulse/pages --jq '.html_url'</code></pre>
+          </section>
+
           <section class="docs-section" id="troubleshooting" aria-labelledby="troubleshooting-title">
             <h2 id="troubleshooting-title">Troubleshooting</h2>
             <ul class="trouble-list">
@@ -197,6 +269,11 @@ All checks passed</code></pre>
               <li>
                 Stale unsigned manifests: clear <code>~/.codepulse/cache/registry/</code>
                 so the daemon reseeds signed ones.
+              </li>
+              <li>
+                Gray or empty Activity Bar tile: install v1.2.2 or newer, then run
+                <code>Developer: Reload Window</code>. If VS Code still shows the stale
+                cached icon, quit and reopen VS Code.
               </li>
             </ul>
           </section>

@@ -50,19 +50,39 @@ CodePulse is a comprehensive VS Code extension that automatically tracks your co
 
 ### Installation
 
-1. **From VS Code Marketplace** (Coming Soon)
+1. **From VS Code Marketplace**
    - Open VS Code
    - Go to Extensions (Ctrl+Shift+X)
-   - Search for "CodePulse"
+   - Search for `Code Pulse Tracker`
+   - Install `umutkorkmaz.code-pulse-tracker`
    - Click Install
 
-2. **From Source**
+2. **From a local VSIX**
    ```bash
-   git clone <repository-url>
-   cd codepulse
+   code --install-extension code-pulse-tracker-1.2.2.vsix
+   ```
+
+3. **From Source**
+   ```bash
+   git clone https://github.com/UmutKorkmaz/code-pulse.git
+   cd code-pulse
    npm install
-   npm run compile
-   # Install the .vsix file in VS Code
+   npm run package
+   code --install-extension code-pulse-tracker-1.2.2.vsix
+   ```
+
+4. **Desktop app, CLI, daemon, and MCP**
+   ```bash
+   cd platform
+   npm install
+   npm run build
+   node apps/daemon/dist/main.js
+   ```
+
+   In another terminal:
+   ```bash
+   node apps/cli/dist/index.js doctor
+   node apps/cli/dist/index.js status
    ```
 
 ### Quick Setup
@@ -217,8 +237,8 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ```bash
 # Clone the repository
-git clone <repository-url>
-cd codepulse
+git clone https://github.com/UmutKorkmaz/code-pulse.git
+cd code-pulse
 
 # Install dependencies
 npm install
@@ -231,6 +251,36 @@ npm run test
 
 # Package extension
 npm run package
+```
+
+### Desktop Release Build
+
+```bash
+cd platform
+npm install
+npm run build
+cd apps/desktop
+npm run tauri:build
+```
+
+Native installers are emitted under `platform/apps/desktop/src-tauri/target/release/bundle/`.
+
+### Publish Site and Desktop Artifacts
+
+The GitHub Pages workflow publishes the `site/` directory:
+
+```bash
+gh workflow run pages.yml --repo UmutKorkmaz/code-pulse --ref main
+RUN_ID=$(gh run list --repo UmutKorkmaz/code-pulse --workflow pages.yml --limit 1 --json databaseId --jq '.[0].databaseId')
+gh run watch --repo UmutKorkmaz/code-pulse "$RUN_ID"
+gh api repos/UmutKorkmaz/code-pulse/pages --jq '.html_url'
+```
+
+Download a desktop release artifact:
+
+```bash
+gh release download v1.2.2 --repo UmutKorkmaz/code-pulse --pattern "*.dmg" --dir dist/releases
+open dist/releases/*.dmg
 ```
 
 ### Project Structure
@@ -254,7 +304,8 @@ codepulse/
 
 ## 📋 Roadmap
 
-- [ ] VS Code Marketplace publication
+- [x] VS Code Marketplace-ready extension identity (`umutkorkmaz.code-pulse-tracker`)
+- [ ] Signed desktop installers on GitHub Releases
 - [ ] Advanced code complexity analysis
 - [ ] Team collaboration features
 - [ ] Integration with popular project management tools
@@ -292,10 +343,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- 🐛 **Bug Reports**: [GitHub Issues](<repository-url>/issues)
-- 💡 **Feature Requests**: [GitHub Discussions](<repository-url>/discussions)
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/UmutKorkmaz/code-pulse/issues)
+- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/UmutKorkmaz/code-pulse/discussions)
 - 📧 **Email**: support@codepulse.dev
-- 💬 **Discord**: [Join our community](<discord-invite>)
 
 ---
 

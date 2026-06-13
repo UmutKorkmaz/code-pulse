@@ -197,15 +197,24 @@ ROADMAP.md
 
 # Docker / CI — these are dev-only, not needed by end users
 Dockerfile
+.dockerignore
 docker-compose.yml
 
 # Claude / plugin caches
 .claude/
 .serena/
+.remember/
+
+# Local conversation/history exports
+*-local-command-*.txt
 
 # Platform monorepo (daemon/CLI/desktop ship separately, not inside the extension)
 platform/
 AGENTS.md
+
+# Public website and brand-source assets ship through GitHub Pages, not VSIX
+site/
+assets/
 
 # Development scripts (CI helpers, seed data)
 scripts/

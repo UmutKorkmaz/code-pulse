@@ -1279,6 +1279,103 @@ button {
   color: var(--text);
 }
 
+.download {
+  scroll-margin-top: 5.5rem;
+}
+
+.download-grid,
+.quickstart-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.download-card,
+.quickstart-card {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(145deg, oklch(100% 0 0 / 0.055), transparent 42%),
+    oklch(100% 0 0 / 0.026);
+}
+
+.download-card {
+  display: grid;
+  align-content: start;
+  gap: 0.95rem;
+  min-height: 25rem;
+  padding: 1.1rem;
+}
+
+.download-label,
+.download-note,
+.quickstart-card span {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.download-label {
+  color: var(--accent);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+}
+
+.download-card h3,
+.quickstart-card h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  letter-spacing: 0;
+}
+
+.download-card h3 {
+  font-size: 1.35rem;
+}
+
+.download-card p,
+.quickstart-card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.download-card .button {
+  width: 100%;
+  min-height: 2.75rem;
+  justify-content: center;
+}
+
+.download-note {
+  align-self: end;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.quickstart-grid {
+  margin-top: 1rem;
+}
+
+.quickstart-card {
+  display: grid;
+  gap: 0.7rem;
+  min-height: 11rem;
+  padding: 1rem;
+}
+
+.quickstart-card span {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius);
+  color: var(--bg);
+  background: var(--accent);
+  font-size: 0.85rem;
+}
+
+.quickstart-card h3 {
+  font-size: 1.05rem;
+}
+
 .license {
   font-family: var(--font-mono);
 }
@@ -1521,6 +1618,11 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .download-grid,
+  .quickstart-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .surface-panel,
   .bento-card,
   .cta-panel {
@@ -1536,6 +1638,10 @@ button {
   .section-heading {
     grid-template-columns: 1.05fr 0.95fr;
     align-items: end;
+  }
+
+  .download-card {
+    padding: 1.25rem;
   }
 
   .surface-showcase {
@@ -1612,6 +1718,10 @@ button {
 
   .steps {
     grid-template-columns: repeat(3, 1fr);
+  }
+
+  .download-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .steps::before {
